@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import type { GraphLink, GraphNode, WisdomEntry } from '../../types/domain';
-  import { filterGraph, joinTags, radialLayout, selectedTag, type PositionedNode } from './layout';
+  import { filterGraph, joinTags, radialLayout, type PositionedNode } from './layout';
+  import { parseUrlState, resolveUrlState, writeUrlState } from './urlState';
 
   let allNodes = $state<Array<GraphNode & { tags: string[] }>>([]);
   let allEdges = $state<GraphLink[]>([]);
@@ -29,20 +30,26 @@
     if (focusedNode && !focusedNode.isConnected) tagFilter?.focus();
   }
 
+  let loaded = false;
+
   function setTag(tag: string) {
-    const url = new URL(window.location.href);
-    if (tag) url.searchParams.set('tag', tag);
-    else url.searchParams.delete('tag');
-    window.history.pushState({}, '', url);
+    const keepNode = selected && filterGraph(allNodes, allEdges, tag).nodes.some((node) => node.id === selected?.id);
+    writeUrlState({ tag, node: keepNode ? selected?.id : '' });
     void applyTag(tag);
   }
 
-  function syncFromUrl() {
-    void applyTag(selectedTag(window.location.search));
+  async function syncFromUrl() {
+    if (!loaded) return;
+    const requested = parseUrlState(window.location.search);
+    const next = resolveUrlState(requested, tags, (tag) => filterGraph(allNodes, allEdges, tag).nodes.map((node) => node.id));
+    if (next.tag !== requested.tag || next.node !== requested.node) writeUrlState(next, 'replace');
+    await applyTag(next.tag);
+    selected = next.node ? positioned.get(next.node) ?? null : null;
   }
 
   function selectNode(node: PositionedNode) {
     selected = node;
+    writeUrlState({ node: node.id });
   }
 
   const arrowSteps: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
@@ -63,8 +70,8 @@
   }
 
   onMount(() => {
-    syncFromUrl();
-    window.addEventListener('popstate', syncFromUrl);
+    const onPopState = () => void syncFromUrl();
+    window.addEventListener('popstate', onPopState);
     void (async () => {
       try {
         // Data flow: API response -> joinTags -> radialLayout -> SVG render -> selectNode -> <aside>.
@@ -77,13 +84,15 @@
         const wisdom: WisdomEntry[] = await wisdomResponse.json();
         allNodes = joinTags(graph.nodes, wisdom);
         allEdges = graph.edges;
+        loaded = true;
+        await syncFromUrl();
       } catch (reason) {
         error = reason instanceof Error ? reason.message : 'The live graph is unavailable.';
       } finally {
         loading = false;
       }
     })();
-    return () => window.removeEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', onPopState);
   });
 </script>
 
