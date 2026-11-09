@@ -1,0 +1,1191 @@
+---
+// Hero del valle — esqueleto de movimiento de Atlas Motion (atlasmotion.com):
+// fondo fijo ~5 pantallas, titular en escalera letra a letra, párrafo palabra a palabra,
+// etiqueta → titular → objeto que entra, y proceso fijado con contador y palabras gigantes.
+// Estructura sí; su código, textos, imágenes y tipografía nunca.
+import type { WisdomEntry } from '../types/domain';
+import TextoTinta from './TextoTinta.astro';
+
+interface Station { id: string; text: string; section: string; lang: string }
+interface Door { href: string; label: string; note: string }
+interface Props {
+  lang: 'en' | 'es';
+  title: string;
+  intro: string;
+  stations: Station[];
+  doors: Door[];
+  headingId: string;
+  cta: string;
+  ctaHref: string;
+}
+const { lang, title, intro, stations, doors, headingId, cta, ctaHref } = Astro.props as Props;
+
+const ART = '/visual-system/valle';
+const capas = [
+  { n: 'fondo', clase: 'fondo', alt: lang === 'es' ? 'Cielo y picos lejanos del valle' : 'Sky and distant peaks of the valley' },
+  { n: 'izquierda', clase: 'izq', alt: lang === 'es' ? 'Acantilado de karst a la izquierda' : 'Karst cliff on the left' },
+  { n: 'derecha', clase: 'der', alt: lang === 'es' ? 'Acantilado de karst a la derecha' : 'Karst cliff on the right' },
+  { n: 'frente', clase: 'frente', alt: lang === 'es' ? 'Hierba y flores en primer plano' : 'Grass and wildflowers in the foreground' },
+];
+
+// Titular en escalera: dos tramos, el segundo desplazado a la derecha (Atlas).
+const palabras = title.split(' ');
+const corte = lang === 'es' ? 2 : 2; // «El Tao» / «del Desarrollo» · «The Tao» / «of Development»
+const lineas = [palabras.slice(0, corte).join(' '), palabras.slice(corte).join(' ')];
+
+const insignia = stations[0];
+const cierre = stations[stations.length - 1] ?? insignia;
+
+const copia = {
+  en: {
+    scroll: 'Scroll',
+    etiqueta: 'The governed corpus',
+    titular2: 'Quotes you can trace',
+    parrafo2: 'Every quote carries its source, its section and its level. Nothing arrives anonymous.',
+    etiqueta3: 'Four doors',
+    cierreLabel: 'A quote from the corpus',
+  },
+  es: {
+    scroll: 'Baja',
+    etiqueta: 'El corpus gobernado',
+    titular2: 'Citas que puedes rastrear',
+    parrafo2: 'Cada cita lleva su fuente, su sección y su nivel. Ninguna llega anónima.',
+    etiqueta3: 'Cuatro puertas',
+    cierreLabel: 'Una cita del corpus',
+  },
+}[lang];
+---
+
+<section class="valle" data-valle aria-labelledby={headingId}>
+  <div class="valle__escena">
+    <div class="valle__capas" aria-hidden="false">
+      {capas.map((c) => (
+        <picture>
+          {/* En vertical la pintura no se reduce: se recorta. Es
+              apaisada (2,33:1) y en un marco de móvil `cover` la escala por el
+              alto, así que la pinta a 1.972 px de ancho CSS y **solo se ven
+              390**: medido en los 25 pasos del scroll, con el zoom de 1 a 1,5 y
+              el `xPercent` incluidos, lo único que llega a verse es la franja
+              40,1 %–59,9 % del ancho. Bajar a un fichero pequeño volvería a
+              dejar la hierba «en papilla» (ver el zoom, más abajo); el recorte
+              28 %–72 % trae los mismos píxeles —misma nitidez y misma
+              gradación— por el 39 % de los bytes: 713 KB → 278 KB.
+              Recorte y huellas en `valle/movil.json` (lo vigila `valleMovil.test.ts`). */}
+          <source
+            media="(orientation: portrait) and (max-width: 900px)"
+            srcset={`${ART}/valle-${c.n}-movil.webp`}
+            width="1380"
+            height="1344"
+          />
+          {/* En píxeles, no en `vw`: con `320vw` el navegador empezaba a
+              bajarse el de 3136 px —320 % de los 980 px que supone antes de
+              leer la etiqueta `viewport`— y lo cancelaba al medir la pantalla
+              de verdad. Aquí ya solo decide en horizontal y en escritorio. */}
+          <img
+            class={`valle__capa valle__capa--${c.clase}`}
+            data-capa={c.clase}
+            src={`${ART}/valle-${c.n}-2200.webp`}
+            srcset={`${ART}/valle-${c.n}-1600.webp 1600w, ${ART}/valle-${c.n}-2200.webp 2200w, ${ART}/valle-${c.n}-3136.webp 3136w`}
+            sizes="(max-width: 900px) 1280px, 160vw"
+            width="3136"
+            height="1344"
+            alt={c.clase === 'fondo' ? c.alt : ''}
+            aria-hidden={c.clase === 'fondo' ? undefined : 'true'}
+            decoding="async"
+            fetchpriority={c.clase === 'fondo' ? 'high' : undefined}
+          />
+        </picture>
+      ))}
+      <div class="valle__bruma" data-bruma aria-hidden="true"></div>
+      <div class="valle__sombra" aria-hidden="true"></div>
+      <div class="valle__luz valle__luz--izq" data-luz aria-hidden="true"></div>
+      <div class="valle__luz valle__luz--centro" data-luz-centro aria-hidden="true"></div>
+      <div class="valle__tinta" data-tinta aria-hidden="true"></div>
+    </div>
+
+    <div class="valle__capitulos">
+      <!-- 1 · Titular en escalera, letra a letra; párrafo palabra a palabra -->
+      <article class="cap cap--uno" data-cap="1">
+        <h1 class="cap__titular" id={headingId} aria-label={title}>
+          {lineas.map((l, i) => (
+            <span class={`cap__linea cap__linea--${i + 1}`} data-letras>{l}</span>
+          ))}
+        </h1>
+        <TextoTinta as="p" modo="niebla" manual class="cap__parrafo" texto={intro} />
+        <p class="cap__cue"><span>{copia.scroll}</span></p>
+      </article>
+
+      <!-- 2 · Etiqueta → titular letra a letra → entra un objeto (la cita insignia) -->
+      <article class="cap cap--dos" data-cap="2">
+        <p class="cap__etiqueta">{copia.etiqueta}</p>
+        <h2 class="cap__titular cap__titular--dos" data-letras>{copia.titular2}</h2>
+        <TextoTinta as="p" modo="niebla" manual class="cap__parrafo cap__parrafo--centro" texto={copia.parrafo2} />
+        {insignia && (
+          <figure class="cita" data-objeto>
+            <blockquote lang={insignia.lang}>{insignia.text}</blockquote>
+            <figcaption>{insignia.id} · {insignia.section}</figcaption>
+          </figure>
+        )}
+      </article>
+
+      <!-- 3 · Proceso fijado: contador 01→04 y palabras gigantes que cruzan -->
+      <article class="cap cap--tres" data-cap="3">
+        <p class="cap__etiqueta cap__etiqueta--tres">{copia.etiqueta3}</p>
+        <ol class="pasos">
+          {doors.map((d, i) => (
+            <li class="paso" data-paso={i + 1}>
+              <p class="paso__num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</p>
+              <h3 class="paso__palabra"><a href={d.href}>{d.label}</a></h3>
+              <p class="paso__frase">{d.note}</p>
+            </li>
+          ))}
+        </ol>
+      </article>
+
+      <!-- 4 · La cita viva y la puerta de entrada -->
+      <article class="cap cap--cuatro" data-cap="4">
+        <p class="cap__etiqueta">{copia.cierreLabel}</p>
+        <figure class="cita cita--cierre">
+          <TextoTinta as="blockquote" modo="tinta" manual lang={cierre?.lang} texto={cierre?.text ?? ''} />
+          <figcaption>{cierre?.id} · {cierre?.section}</figcaption>
+        </figure>
+        <p class="cap__cta"><a class="boton" href={ctaHref}>{cta}</a></p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<style>
+  .valle {
+    --cap-sombra: 0 1px 0 rgba(251, 248, 241, .55);
+    position: relative;
+    height: 520vh;
+    margin: calc(var(--ttod-header-height, 4.25rem) * -1) 0 0;
+    background: #e6e6da;
+  }
+  /* El canto de abajo del hero: la pintura se deshace en el papel de la página.
+     Cortada en seco dejaba un borde recto de lado a lado (medido: 119 RGB de
+     salto en el 99,9 % de las columnas): justo el corte recto que se evita. */
+  .valle::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: clamp(3rem, 9vh, 7rem);
+    background: linear-gradient(to bottom, rgba(232, 224, 203, 0), rgb(232, 224, 203));
+    pointer-events: none;
+    z-index: 2;
+  }
+  .valle__escena {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: clip;
+    isolation: isolate;
+  }
+  .valle__capas { position: absolute; inset: 0; }
+  /* Sin `translate` de CSS: GSAP la normaliza dentro de su transform y la pisa. */
+  .valle__capa {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    will-change: transform;
+  }
+  .valle__capa--izq { transform-origin: 18% 85%; }
+  .valle__capa--der { transform-origin: 82% 85%; }
+  .valle__capa--frente { transform-origin: 50% 100%; }
+
+  /* Bruma: luz de la mañana, no una capa recortada (sin máscara, sin bordes).
+     La caja mide 160vh y se desplaza ±14 % de su alto (±22vh): así sus dos cantos
+     se quedan siempre fuera de pantalla. Con `inset: 0` el canto de abajo entraba
+     en el encuadre y dejaba un corte recto de lado a lado (medido: −25 RGB en una
+     fila, 95 % de las columnas, y=828 al 80 % del scroll). */
+  .valle__bruma {
+    position: absolute;
+    inset: -30% 0;
+    /* Medida del 17 oct a 390, apagando capa por capa: esta bruma subía la
+       hierba del primer plano 50 niveles (81 → 135) y el medio otros 10. Con la
+       pintura ya graduada, eso era la mitad del «washed out»: la niebla tapaba
+       el valle en vez de separarlo. La pintura de referencia tiene niebla solo
+       donde hay distancia —la boca del valle—, nunca sobre el primer plano. */
+    background:
+      /* .40 de crema sobre el agua —que ya es lo más claro de la pintura— dejaba
+         una banda quemada: medido a 390 en la pantalla de la cita, la franja del
+         río daba mediana 251 de 255, un agujero blanco en medio del valle. A .24
+         la boca del valle sigue separándose del fondo y el agua conserva dibujo. */
+      radial-gradient(120% 40% at 50% 54%, rgba(253, 246, 232, .24), rgba(253, 246, 232, 0) 62%),
+      linear-gradient(to top, rgba(252, 245, 233, .12) 19%, rgba(252, 245, 233, 0) 38%);
+    opacity: .9;
+    will-change: transform, opacity;
+  }
+  /* Luz de la mañana: cae sobre la columna de lectura y apaga el detalle del fondo.
+     Es un degradado a sangre, no un panel: no tiene borde en ningún lado.
+     El crema (253,246,232) y no el blanco (255,253,247): en la pintura de
+     referencia la masa clara es cálida (hue 10, valor 87), no papel blanco. Así la
+     luz pertenece a la hora dorada de la pintura en vez de taparla. */
+  .valle__luz { position: absolute; inset: 0; opacity: 0; will-change: opacity; }
+  /* Si hay foco de luz tiene que haber sombra: sin negros el fotograma se queda
+     en 124 de recorrido de valor y se lee blando. La pintura de referencia tiene
+     185 (p5 43 · mediana 159 · p95 228) en un solo fotograma. Esta sombra cae en
+     los cuatro cantos, nunca en la columna de lectura. */
+  .valle__sombra {
+    position: absolute;
+    inset: 0;
+    /* Y el primer plano pesa: en la referencia la hierba cercana es la masa más
+       oscura del cuadro (p5 49). Aquí la pantalla de la cita se quedaba en p5
+       181 a 390 —todo el fotograma por encima de 181— porque la hierba también
+       iba iluminada. Esta caída llega al canto de abajo, así que no deja costura.
+       Hasta el 30 % de alto, donde no cae texto en ningún capítulo. */
+    background:
+      linear-gradient(to top, rgba(10, 16, 11, .5) 0%, rgba(10, 16, 11, .22) 14%, rgba(10, 16, 11, 0) 30%),
+      radial-gradient(118% 92% at 50% 42%, rgba(12, 18, 12, 0) 38%, rgba(12, 18, 12, .42) 74%, rgba(9, 14, 10, .82) 100%);
+    pointer-events: none;
+  }
+  .valle__luz--izq {
+    background: linear-gradient(97deg,
+      rgba(253, 246, 232, .93) 0%,
+      rgba(253, 246, 232, .85) 22%,
+      rgba(253, 246, 232, .55) 38%,
+      rgba(253, 246, 232, 0) 58%);
+    opacity: 1;
+  }
+  /* La luz del centro es luz, no papel. A .92 de crema el valle desaparecía
+     debajo: medido en esa pantalla a 390, el 5 % más oscuro del fotograma estaba
+     en 183 de valor, cuando la pintura de referencia tiene 49 ahí. Con .62 en el
+     corazón y una caída más corta, el karst y el río se siguen leyendo a través
+     de la luz y el fotograma recupera negros. */
+  .valle__luz--centro {
+    /* Y es alta donde cae la lectura, no una cúpula que llega al río: con 48 %
+       de radio la luz aterrizaba sobre el agua (franja del 62 al 75 % de la
+       pantalla, mediana 250) y la dejaba sin dibujo. Con 34 % termina encima
+       de la ribera. */
+    background: radial-gradient(64% 34% at 50% 36%, rgba(253, 246, 232, .62), rgba(253, 246, 232, .34) 54%, rgba(253, 246, 232, 0) 82%);
+  }
+  /* Lavado de tinta del capítulo del proceso (a sangre, nunca una franja).
+     Verde profundo cálido (hue 134), no el verde azulado de antes (hue 158):
+     la sombra de la referencia mide (34,52,41), hue 143. */
+  .valle__tinta {
+    position: absolute;
+    inset: 0;
+    /* Banda de lectura, no losa: el lavado es opaco en la franja donde caen las
+       palabras gigantes y llega a cero arriba y abajo. Así el capítulo de las
+       puertas conserva el cielo y el río luminosos, y el fotograma mantiene el
+       recorrido de valor de la referencia (negros y blancos a la vez) en vez de
+       aplanarse en verde oscuro (p95 medido: 102 antes, con la losa). */
+    background:
+      linear-gradient(180deg,
+        rgba(21, 29, 20, 0) 0%,
+        /* La etiqueta del capítulo cae al 12 % de la pantalla y ahí el lavado
+           todavía era medio: 3,27:1 medido sobre la captura a 768. Sube antes,
+           sin tocar el 0 % ni el 100 %, que son los que evitan el canto recto. */
+        rgba(21, 29, 20, .62) 8%,
+        rgba(21, 29, 20, .88) 17%,
+        rgba(27, 36, 25, .96) 42%,
+        rgba(27, 36, 25, .96) 62%,
+        rgba(15, 20, 16, .72) 85%,
+        rgba(15, 20, 16, 0) 100%);
+    opacity: 0;
+  }
+
+  .valle__capitulos { position: absolute; inset: 0; }
+  .cap {
+    position: absolute;
+    inset: 0;
+    /* Los capítulos son `<article>` y `tokens.css` les pone margen y filete de
+       tinta a todos. Colocados no se nota; en flujo (sin movimiento) dejaban
+       32 px de hueco entre capítulo y capítulo. */
+    margin: 0;
+    border: 0;
+    display: grid;
+    align-content: center;
+    gap: var(--ttod-space-4, .75rem);
+    padding: calc(var(--ttod-header-height, 4.25rem) + 3vh) clamp(1.1rem, 5vw, 5.5rem) 6vh;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .cap--uno { opacity: 1; align-content: center; }
+  .cap[data-visible] { pointer-events: auto; }
+
+  .cap__etiqueta {
+    margin: 0;
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    /* Tinta, no gris verdoso: sobre la luz de lectura el gris medía 2,75:1
+       (auditoría de contraste) y el mínimo es 4,5:1. */
+    color: #171208;
+  }
+  /* La letra tiene que parecer escritura con tinta china, y en grande.
+     Erode, no la grotesca de la interfaz: su trazo tiene el canto erosionado de
+     la tinta al empapar el papel, y en caja alta y baja (no versales) se lee
+     como algo escrito, no como un rótulo. La tinta de verdad la pone la máscara
+     de la aguada, que escribe el titular letra a letra con el scroll. */
+  .cap__titular {
+    margin: 0;
+    font-family: var(--ttod-font-titular);
+    font-weight: 300;
+    font-size: clamp(2.8rem, 11.6vw, 9.5rem);
+    line-height: .98;
+    letter-spacing: -.018em;
+    /* Tinta más honda, mismo verde-negro. Al 20 % del scroll la cámara ya ha
+       entrado y «El Tao» cruza el karst oscuro de la izquierda: ahí el fondo
+       mide luminancia 0,14 y con #15201b el titular se quedaba en 3,02:1 —pasa
+       el mínimo de 3,0 para texto grande por dos centésimas, que no es margen.
+       Con #0d1410 son 3,37:1. Oscurecer la tinta sube el contraste en todo el
+       recorrido, porque la letra es siempre el elemento oscuro de los dos. */
+    color: #0d1410;
+  }
+  /* Escalera solo en el titular de la portada: el resto fluye en línea. */
+  .cap--uno .cap__titular { display: grid; }
+  .cap__linea { display: block; }
+  .cap__linea--2 { justify-self: start; margin-inline-start: clamp(1.5rem, 14vw, 13rem); }
+  /* `:global` porque el párrafo lo pinta `TextoTinta` y no lleva el ámbito de aquí. */
+  :global(.cap__parrafo) {
+    /* La caja de la letra de titular es ~1,2 em: sin este aire, el párrafo la toca. */
+    margin: clamp(1.9rem, 4.6vh, 3.4rem) 0 0;
+    max-width: 34ch;
+    font-size: clamp(1rem, 1.25vw, 1.35rem);
+    line-height: 1.5;
+    color: #26312b;
+  }
+  /* La entradilla sigue la sangría de «del Desarrollo»: la escalera del titular
+     no se corta en la segunda línea, baja hasta el párrafo. Y además es lo que
+     lo saca del acantilado: a ras del margen izquierdo, al subir el capítulo con
+     el scroll (paso 2), el párrafo caía sobre la roca y la hierba del banco
+     izquierdo y el filtro medía 6,1 % de detalle (máximo 5 %). Con la sangría
+     aterriza en la bruma del centro: 0,2 % en los tres pasos en que se ve.
+     Medido sobre capturas sin texto a 1440 px de los pasos 0, 1 y 2.
+     Solo de 701 px arriba: a 390 el párrafo ya mide 0,6 % y la sangría lo haría
+     saltar de línea, empujando el «Baja ↓» a la hierba. */
+  @media (min-width: 701px) {
+    .cap--uno :global(.cap__parrafo) { margin-inline-start: clamp(1.5rem, 14vw, 13rem); }
+  }
+  .cap__cue {
+    margin: clamp(1.2rem, 4vh, 3rem) 0 0;
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    color: #1b1509;
+  }
+  .cap__cue span::after { content: ' ↓'; }
+
+  /* 2 · centrado, como la etiqueta → titular de Atlas */
+  .cap--dos { justify-items: center; text-align: center; align-content: center; }
+  .cap__titular--dos { font-size: clamp(2.1rem, 6.4vw, 6rem); }
+  :global(.cap__parrafo--centro) { max-width: 46ch; text-align: center; }
+
+  /* La cita no es una tarjeta ni un rectángulo de papel: es texto sobre la pintura,
+     apoyado en la zona que la luz del valle ya ha aclarado. Lo que la separa del
+     paisaje es el tamaño y el filo de tinta de la lectura, no un fondo opaco. */
+  .cita {
+    margin: clamp(1rem, 3vh, 2.4rem) 0 0;
+    max-width: 40ch;
+    padding-inline-start: clamp(.9rem, 1.8vw, 1.6rem);
+    border-inline-start: 2px solid rgba(27, 23, 16, .5);
+    will-change: transform, opacity;
+  }
+  /* `:global` en la cita de cierre: la pinta `TextoTinta` y no lleva el ámbito de aquí. */
+  .cita :global(blockquote) {
+    margin: 0;
+    font-size: clamp(1.2rem, 2vw, 2rem);
+    line-height: 1.38;
+    letter-spacing: -.008em;
+    color: #140f08;
+  }
+  .cita figcaption {
+    margin-top: var(--ttod-space-3, .5rem);
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    /* Igual que la etiqueta: el pie de la cita medía 3,42:1 sobre la pintura. */
+    color: #141009;
+  }
+
+  /* El foco de luz de lectura de los capítulos 2 y 4, el mismo recurso que ya
+     usa el modo sin movimiento. No es una tarjeta: llega a cero por los cuatro
+     lados, así que no tiene filo ni esquina. Sin él, la cita de cierre y su pie
+     caen sobre el acantilado en sombra (1,89 y 2,23 de contraste medidos sobre
+     la máscara de los glifos, no sobre la caja del párrafo). */
+  .cap--dos,
+  .cap--cuatro {
+    background-image: radial-gradient(70% 44% at 50% 52%, rgba(253, 246, 232, .92), rgba(253, 246, 232, .74) 52%, rgba(253, 246, 232, 0) 100%);
+    background-repeat: no-repeat;
+  }
+  /* El foco se centra en lo que se lee, no en la mitad del capítulo. En el
+     capítulo 2 la cita vive en la franja 0,56–0,92 de la caja (medido), y la
+     luz centrada al 52 % con radio 44 % llega a cero en 0,74: el pie de la
+     cita caía fuera, sobre la mata de flores, y medía 3,26:1. Centrada al
+     72 % con radio 54 % la luz cubre de 0,45 a 1 y sigue llegando a cero en
+     los cuatro lados, así que no aparece ningún filo. */
+  .cap--dos {
+    background-image: radial-gradient(74% 54% at 50% 72%, rgba(253, 246, 232, .92), rgba(253, 246, 232, .74) 52%, rgba(253, 246, 232, 0) 100%);
+  }
+  /* A 390 la cita ocupa el ancho entero de la caja (0,08–0,96): una luz de
+     74 % de ancho deja sus dos extremos fuera. */
+  @media (max-width: 900px) {
+    .cap--dos {
+      background-image: radial-gradient(128% 50% at 50% 70%, rgba(253, 246, 232, .92), rgba(253, 246, 232, .74) 52%, rgba(253, 246, 232, 0) 100%);
+    }
+    .cap--cuatro {
+      background-image: radial-gradient(128% 46% at 50% 52%, rgba(253, 246, 232, .92), rgba(253, 246, 232, .74) 52%, rgba(253, 246, 232, 0) 100%);
+    }
+  }
+
+  /* 3 · proceso: contador y palabras gigantes sobre el lavado de tinta */
+  .cap--tres { align-content: center; }
+  /* Sobre el velo a .62 el valle se ve debajo y el gris apagado se queda en
+     2,3 de contraste: la etiqueta y el contador suben a seda. */
+  .cap__etiqueta--tres { color: #e8eee9; }
+  .pasos { list-style: none; margin: 0; padding: 0; position: relative; min-height: 46vh; }
+  .paso {
+    position: absolute;
+    inset: auto 0 0;
+    top: 0;
+    display: grid;
+    align-content: center;
+    /* Filas fijas: las cuatro puertas comparten línea base aunque su frase ocupe dos líneas. */
+    grid-template-rows: 1.4em auto 3.4em;
+    /* Hueco grande: la caja de la letra gigante es ~1,2 em, mucho más alta que su línea. */
+    gap: clamp(1.3rem, 3.4vw, 3.2rem);
+    opacity: 0;
+    /* `opacity: 0` no saca nada del hit-testing: las cuatro puertas están
+       apiladas y las tres invisibles se comían el clic de la visible (los tres
+       primeros enlaces llevaban a /oracle). El puntero sigue a lo que se ve. */
+    pointer-events: none;
+  }
+  .paso[data-visible] { pointer-events: auto; }
+  .paso__num {
+    margin: 0;
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    letter-spacing: .3em;
+    color: #e4ece6;
+  }
+  .paso__palabra {
+    margin: 0;
+    font-family: var(--ttod-font-ui);
+    font-weight: 520;
+    font-size: clamp(2.8rem, 11.5vw, 11rem);
+    line-height: .88;
+    letter-spacing: -.04em;
+    text-transform: uppercase;
+    color: #f4f1e6;
+    white-space: nowrap;
+  }
+  /* Una palabra gigante no se lee como una puerta por sí sola: la flecha y el
+     filete dicen que se entra, y avanzan al pasar por encima o al recibir foco. */
+  .paso__palabra a {
+    display: inline-flex;
+    /* 44 px: la palabra es enorme, pero su caja de enlace medía 41 por la
+       interlínea de .88 y el pulgar merece el mínimo cómodo. */
+    min-height: 44px;
+    align-items: baseline;
+    gap: .14em;
+    color: inherit;
+    text-decoration: none;
+    border-block-end: .055em solid rgba(244, 241, 230, .4);
+    transition: border-color .3s ease;
+  }
+  .paso__palabra a::after {
+    content: '→';
+    font-size: .36em;
+    line-height: 1;
+    transform: translateX(0);
+    transition: transform .3s cubic-bezier(.22, .8, .3, 1);
+  }
+  .paso__palabra a:hover,
+  .paso__palabra a:focus-visible { border-block-end-color: #f4f1e6; }
+  .paso__palabra a:hover::after,
+  .paso__palabra a:focus-visible::after { transform: translateX(.34em); }
+  .paso__frase { margin: 0; max-width: 34ch; font-size: clamp(1rem, 1.2vw, 1.3rem); color: #eaf1eb; }
+
+  /* A partir de 900 px la frase ocupa la mitad derecha: ese hueco estaba vacío
+     cuatro pantallas seguidas porque se copió el fondo oscuro de la referencia
+     sin el objeto que lo justificaba. */
+  @media (min-width: 900px) {
+    .paso {
+      /* La palabra manda y la frase ocupa el resto. Con `max-content` en la
+         primera columna la retícula se pasaba del ancho y la palabra salía
+         cortada por la izquierda. */
+      grid-template-columns: minmax(0, 1fr) minmax(13rem, 26ch);
+      grid-template-rows: 1.4em auto;
+      column-gap: clamp(2rem, 4.5vw, 4.5rem);
+      align-items: end;
+    }
+    .paso__palabra { font-size: clamp(2.8rem, 8.4vw, 8rem); }
+    .paso__num { grid-column: 1 / -1; }
+    .paso__palabra { grid-column: 1; grid-row: 2; }
+    .paso__frase { grid-column: 2; grid-row: 2; margin-block-end: .55em; }
+  }
+
+  /* El foco se ve sobre la pintura y sobre la tinta, en ambos casos. */
+  .valle a:focus-visible {
+    outline: 3px solid #f4f1e6;
+    outline-offset: .22em;
+    border-radius: 2px;
+  }
+  .cap--cuatro a:focus-visible { outline-color: #14110b; }
+
+  /* 4 · cierre */
+  .cap--cuatro { justify-items: center; text-align: center; }
+  .cita--cierre { max-width: 52ch; text-align: left; }
+  .cap__cta { margin: clamp(1rem, 3vh, 2.2rem) 0 0; }
+  .boton {
+    display: inline-block;
+    padding: .85rem 1.6rem;
+    border: 1px solid rgba(27, 23, 16, .3);
+    background: rgba(252, 250, 243, .94);
+    /* Canto redondo: ninguna recta dura. */
+    border-radius: 999px;
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-sm);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #1b1710;
+    text-decoration: none;
+  }
+  .boton:hover { background: #fffdf6; }
+
+  /* Letras y palabras: el reparto lo hace el guion; sin él, texto normal */
+  :global(.letra) { display: inline-block; }
+  /* Ya no hay letra que suba desde debajo de una caja: la letra se queda quieta
+     y lo que entra es la tinta. Sin `overflow: hidden` las colas de la «q» y la
+     «p» del titular del segundo capítulo dejan de cortarse. */
+  :global(.letra-mascara) { display: inline-block; line-height: 1.1; vertical-align: bottom; }
+
+  /* El titular escrito con la aguada de tinta del propio rollo: cada letra se
+     revela por la mancha, no por un fundido. 14 estados binarios, así que la
+     letra nunca se queda a medio opaco. El fotograma mide 4 × 1 em (la hoja es
+     4:1): a esa escala la mancha cabe dentro de la letra y se ve el trazo.
+     Solo con la hoja descargada (`data-tinta-listo`); si falla, letra entera. */
+  :global([data-tinta-listo] .letra) {
+    --tinta-foto-w: 4em;
+    --tinta-foto-h: 1em;
+    /* La copia que ya bajó el guion (`lib/tinta.ts`), para no pedirla otra vez. */
+    -webkit-mask-image: var(--tinta-hoja, url('/visual-system/tinta/difusion-tinta.webp'));
+    mask-image: var(--tinta-hoja, url('/visual-system/tinta/difusion-tinta.webp'));
+    -webkit-mask-source-type: luminance;
+    mask-mode: luminance;
+    -webkit-mask-repeat: repeat no-repeat;
+    mask-repeat: repeat no-repeat;
+    -webkit-mask-size: var(--tinta-foto-w) calc(var(--tinta-foto-h) * 14);
+    mask-size: var(--tinta-foto-w) calc(var(--tinta-foto-h) * 14);
+    -webkit-mask-position: calc(var(--x, 0) * -1em) calc(var(--p, 13) * var(--tinta-foto-h) * -1);
+    mask-position: calc(var(--x, 0) * -1em) calc(var(--p, 13) * var(--tinta-foto-h) * -1);
+    will-change: mask-position;
+  }
+  :global(.letras-palabra) { display: inline-block; white-space: nowrap; }
+  :global(.letras-leer) {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+
+  @media (max-width: 700px) {
+    .valle { height: 480vh; }
+    .cap { padding-inline: 1.1rem; }
+    .cap__linea--2 { margin-inline-start: 1.2rem; }
+    .cita { max-width: none; }
+    .paso__frase { max-width: none; }
+    /* Encuadre propio para el móvil, no el mismo recorte escalado: la pintura es
+       apaisada (2,34:1) y en vertical entra entera, así que dos tercios de la
+       pantalla eran cielo vacío. El zoom arranca sobre el río y el origen baja
+       para que el cielo salga por arriba. Las escalas de partida van en el guion. */
+    .valle__capa--fondo { transform-origin: 50% 74%; }
+    .valle__capa--izq { transform-origin: 6% 78%; }
+    .valle__capa--der { transform-origin: 94% 78%; }
+    /* El titular es grande y protagonista: a 390 px pasa de 35 a 43 px.
+       Más no cabe: «DEVELOPMENT» es la palabra larga y va en una sola línea. */
+    .cap__titular { font-size: clamp(2.5rem, 11vw, 8.2rem); }
+    /* El primer capítulo sube al cielo. Centrado dejaba un tercio de pantalla de
+       cielo vacío encima del titular, y eso es lo que se lee como «velo blanco»:
+       no es un velo, es que ahí no hay nada. Arriba va la escritura —cielo
+       limpio, que es donde el texto puede ir— y abajo queda el valle entero. */
+    .cap--uno { align-content: start; padding-block-start: calc(var(--ttod-header-height, 4.25rem) + 7vh); }
+    /* El «Baja ↓» se queda en la banda clara del valle, debajo del párrafo. Al
+       pie de la pantalla caía sobre la hierba del primer plano y ahí el
+       contraste se quedaba en 4,46:1 (mínimo 4,5), medido sobre la captura. */
+    .cap--uno .cap__cue { margin-block-start: clamp(2.4rem, 7vh, 4rem); }
+    /* Con el texto arriba, la luz de lectura sube con él. Bañando la mitad
+       izquierda dejaba el río lavado: el fotograma medía p5 126 y la pintura
+       de referencia mide 53. Ahora el valle entero conserva su recorrido de valor y
+       el cielo, que es donde cae la escritura, sigue limpio. */
+    /* La luz de lectura del titular, reducida a lo que el contraste pide y ni
+       un punto más. Con .40/.34/.16 las bandas 1 y 2 de la pantalla medían 224
+       y 221 —más claras que la banda 0 y que la referencia (212/212)—: un cielo
+       que se aclara hacia abajo y sin dibujo es exactamente lo que se lee como
+       velo. Ahora el cielo baja como baja un cielo. */
+    .valle__luz--izq {
+      background: linear-gradient(to bottom,
+        rgba(253, 246, 232, .26) 0%,
+        rgba(253, 246, 232, .17) 24%,
+        rgba(253, 246, 232, .06) 44%,
+        rgba(253, 246, 232, 0) 58%);
+    }
+  }
+
+  /* Sin movimiento se quita el movimiento, no la obra.
+     Cada capítulo lleva su propio encuadre fijo del valle, compuesto con las
+     cuatro capas reales en el mismo orden que la escena animada (frente sobre
+     los acantilados, y estos sobre el fondo), y su propio velo de lectura.
+     El alto pasa a ser el del contenido: antes quedaban cuatro pantallas vacías. */
+  .valle[data-estatico] { height: auto; background: #121710; }
+  .valle[data-estatico] .valle__escena { position: relative; height: auto; }
+  /* La obra se queda quieta, pero entera y continua: una sola pintura pegada
+     arriba detrás de los cuatro capítulos. Cuando cada capítulo pintaba su
+     propio encuadre, la junta entre dos capítulos era un corte recto de lado a
+     lado (medido: salto de 115 RGB en el 100 % de las columnas, y=480). */
+  .valle[data-estatico] .valle__capas {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .valle[data-estatico] .valle__tinta { display: none; }
+  .valle[data-estatico] .valle__capitulos {
+    position: relative;
+    inset: auto;
+    margin-block-start: -100vh;
+  }
+  .valle[data-estatico] .cap {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    min-height: auto;
+    pointer-events: auto;
+    padding-block: clamp(5rem, 14vh, 9rem);
+    /* Cada capítulo solo pone su luz de lectura, y esa luz llega a cero en sus
+       cuatro lados: así dos capítulos seguidos se funden sobre la misma pintura
+       en vez de encontrarse en una línea. */
+    background-image: var(--velo);
+    background-repeat: no-repeat;
+  }
+  .valle[data-estatico] .cap--uno {
+    --velo: radial-gradient(96% 50% at 16% 50%, rgba(253, 246, 232, .96), rgba(253, 246, 232, .86) 46%, rgba(253, 246, 232, .4) 76%, rgba(253, 246, 232, 0) 100%);
+    padding-block-start: calc(var(--ttod-header-height, 4.25rem) + 7vh);
+  }
+  .valle[data-estatico] .cap--dos {
+    --velo: radial-gradient(90% 50% at 50% 50%, rgba(253, 246, 232, .95), rgba(253, 246, 232, .82) 56%, rgba(253, 246, 232, 0) 100%);
+  }
+  .valle[data-estatico] .cap--tres {
+    /* Sombra de lectura translúcida, no una losa: el valle se sigue viendo. */
+    --velo: linear-gradient(to bottom, rgba(17, 23, 15, 0) 0%, rgba(17, 23, 15, .78) 9%, rgba(17, 23, 15, .83) 50%, rgba(17, 23, 15, .78) 91%, rgba(17, 23, 15, 0) 100%);
+  }
+  .valle[data-estatico] .cap--cuatro {
+    --velo: radial-gradient(90% 50% at 50% 50%, rgba(253, 246, 232, .95), rgba(253, 246, 232, .82) 58%, rgba(253, 246, 232, 0) 100%);
+  }
+  /* Las cuatro puertas en retícula, no cuatro titulares gigantes apilados. */
+  .valle[data-estatico] .pasos {
+    min-height: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: clamp(2rem, 5vw, 3.5rem);
+  }
+  .valle[data-estatico] .paso {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    margin-block: 0;
+    pointer-events: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: var(--ttod-space-3, .5rem);
+    align-content: start;
+  }
+  /* La retícula de dos columnas del tramo animado no vale aquí: en estático
+     cada puerta es una ficha en columna, número → palabra → frase. */
+  .valle[data-estatico] .paso__num,
+  .valle[data-estatico] .paso__palabra,
+  .valle[data-estatico] .paso__frase { grid-column: 1; grid-row: auto; }
+  .valle[data-estatico] .paso__palabra { font-size: clamp(1.7rem, 4vw, 2.6rem); white-space: normal; }
+  .valle[data-estatico] .paso__frase { max-width: 30ch; margin-block-end: 0; }
+</style>
+
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  import { REPARTO, cargaHojaTinta, enciendeTinta, olvidaTinta, pintaTinta } from '../lib/tinta';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  // Dos ajustes que en el móvil se notan y no cambian nada de lo que se ve
+  //. `limitCallbacks`: las llamadas de vuelta se agrupan una por
+  // fotograma en vez de dispararse varias veces dentro del mismo. `ignoreMobileResize`:
+  // en un teléfono, esconder o sacar la barra de direcciones cambia el alto de la
+  // ventana, y cada cambio obligaba a recalcular la escena entera a mitad del
+  // scroll; el carril del hero no depende de esos 60 px.
+  ScrollTrigger.config({ limitCallbacks: true, ignoreMobileResize: true });
+
+  // La hoja de tinta no se espera aquí: el paisaje, los capítulos y las letras
+  // no pueden quedarse colgados de que decodifique una imagen. Se enmascara
+  // cuando llegue; si no llega, las frases se quedan enteras y legibles.
+  const hojaTinta = cargaHojaTinta();
+
+  const seccion = document.querySelector<HTMLElement>('[data-valle]');
+  if (seccion) {
+    // Reparte el texto en letras (con máscara, como Atlas) y en palabras.
+    let suelto = 0;
+    const reparteLetras = (el: HTMLElement) => {
+      const texto = el.textContent ?? '';
+      el.textContent = '';
+      const frag = document.createDocumentFragment();
+      // El lector de pantalla lee la frase entera de este texto oculto; las letras
+      // sueltas van con `aria-hidden`. Antes iba en `aria-label` sobre un `span`,
+      // que no tiene rol y no admite nombre (Lighthouse: aria-prohibited-attr).
+      const leer = document.createElement('span');
+      leer.className = 'letras-leer';
+      leer.textContent = texto;
+      frag.append(leer);
+      // Las letras de una palabra van juntas: si no, a 390 px el navegador parte «DEVELOPMENT».
+      texto.split(' ').forEach((pal, i) => {
+        if (i) frag.append(document.createTextNode(' '));
+        const grupo = document.createElement('span');
+        grupo.className = 'letras-palabra';
+        grupo.setAttribute('aria-hidden', 'true');
+        for (const ch of pal) {
+          const mascara = document.createElement('span');
+          mascara.className = 'letra-mascara';
+          const letra = document.createElement('span');
+          letra.className = 'letra';
+          letra.textContent = ch;
+          // Qué trozo de la aguada le toca: determinista, para que la mancha de
+          // una letra no sea la de su vecina y no cambie entre recargas.
+          letra.style.setProperty('--x', String((((suelto++ * 37) + ch.charCodeAt(0)) % 300) / 100));
+          mascara.append(letra);
+          grupo.append(mascara);
+        }
+        frag.append(grupo);
+      });
+      el.append(frag);
+      return [...el.querySelectorAll<HTMLElement>('.letra')];
+    };
+
+    const mm = gsap.matchMedia();
+
+    mm.add('(prefers-reduced-motion: reduce)', () => {
+      seccion.setAttribute('data-estatico', '');
+      seccion.querySelectorAll<HTMLElement>('.cap').forEach((c) => c.setAttribute('data-visible', ''));
+    });
+
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      const letras = new Map<HTMLElement, HTMLElement[]>();
+      seccion.querySelectorAll<HTMLElement>('[data-letras]').forEach((el) => letras.set(el, reparteLetras(el)));
+      // Los bloques de tinta los lleva este hero a mano: dentro de
+      // una escena fijada el texto no sube por la pantalla, así que el
+      // disparador propio de `TextoTinta` se quedaría clavado en un progreso.
+      const tintas = new Map<HTMLElement, { palabras: HTMLElement[]; reparto: number }>();
+      seccion.querySelectorAll<HTMLElement>('.tinta').forEach((el) => {
+        const ps = [...el.querySelectorAll<HTMLElement>('.tinta__p')];
+        if (!ps.length) return;
+        const reparto = el.dataset.tintaModo === 'niebla' ? REPARTO.niebla : REPARTO.tinta;
+        tintas.set(el, { palabras: ps, reparto });
+      });
+      // La máscara, solo con la hoja ya descargada: una máscara que no carga
+      // deja el elemento invisible, y eso sería perder el texto por un archivo.
+      hojaTinta.then((ok) => {
+        if (!ok) return;
+        // Un bloque por fotograma: encenderlos todos a la vez era aplicar la
+        // máscara a varios cientos de palabras en el mismo fotograma.
+        // Los titulares van primero —son los que se están viendo— y se escriben
+        // con la misma aguada: la letra aparece por la mancha de tinta, no por
+        // un fundido ni subiendo desde una caja.
+        enciendeTinta(
+          [...letras.keys(), ...tintas.keys()],
+          (el) => {
+            const ls = letras.get(el);
+            if (ls) pintaTinta(ls, Number(el.dataset.escrito ?? 0), REPARTO.tinta);
+          },
+        );
+      });
+
+      const capa = (n: string) => seccion.querySelector<HTMLElement>(`[data-capa="${n}"]`)!;
+      const caps = [...seccion.querySelectorAll<HTMLElement>('.cap')];
+      const pasos = [...seccion.querySelectorAll<HTMLElement>('.paso')];
+
+      gsap.set(caps.slice(1), { opacity: 0 });
+      gsap.set(pasos, { opacity: 0 });
+      tintas.forEach(({ palabras, reparto }) => pintaTinta(palabras, 0, reparto));
+
+      // El primer capítulo se escribe al cargar (Atlas anima el titular antes de que se scrollee).
+      const uno = caps[0];
+      // La escritura espera a la aguada: si arranca antes de que la hoja esté
+      // descargada, el titular sale entero de golpe y la tinta no se ve escribir
+      // (medido: a 250 ms ya estaba completo). Si la hoja falla, se escribe
+      // igual, sin máscara, y el texto nunca se queda escondido.
+      const intro = gsap.timeline({ paused: true });
+      hojaTinta.then(() => gsap.delayedCall(.15, () => {
+        intro.play();
+        // Reloj de pared: en Safari, con la máscara de tinta repintando cada letra, los
+        // fotogramas pueden tardar tanto que GSAP frena su tiempo (lagSmoothing) y el
+        // titular se quedaba a medias («El T·», «del Desar…»). Pase lo que pase, al cabo
+        // de la duración prevista más un margen el titular queda escrito entero.
+        window.setTimeout(() => {
+          if (intro.progress() < 1) intro.progress(1);
+          uno.querySelectorAll<HTMLElement>('[data-letras]').forEach((el) => {
+            const ls = letras.get(el);
+            if (ls) olvidaTinta(ls);
+          });
+        }, (intro.duration() + 1.2) * 1000);
+      }));
+      const escribe = (
+        linea: gsap.core.Timeline,
+        el: HTMLElement,
+        pos: number,
+        duracion: number,
+        ease: string | undefined,
+      ) => {
+        const ls = letras.get(el);
+        if (!ls) return;
+        const avance = { v: 0 };
+        linea.to(
+          avance,
+          {
+            v: 1,
+            duration: duracion,
+            ease: ease ?? 'none',
+            onUpdate: () => {
+              el.dataset.escrito = String(avance.v);
+              pintaTinta(ls, avance.v, REPARTO.tinta);
+            },
+          },
+          pos
+        );
+      };
+
+      uno.querySelectorAll<HTMLElement>('[data-letras]').forEach((el, j) => {
+        escribe(intro, el, j * .42, 1.7, 'power1.inOut');
+      });
+      uno.querySelectorAll<HTMLElement>('.tinta').forEach((el) => {
+        const t = tintas.get(el);
+        if (!t) return;
+        const avance = { v: 0 };
+        intro.to(
+          avance,
+          { v: 1, duration: 1.1, ease: 'none', onUpdate: () => pintaTinta(t.palabras, avance.v, t.reparto) },
+          .45
+        );
+      });
+      uno.setAttribute('data-visible', '');
+
+      // Quién recibe el puntero se decide por la posición del scroll, no por
+      // callbacks de la línea de tiempo: un `.call()` en un `scrub` se salta o
+      // se repite al ir y volver, y dejaba enlaces invisibles mordiendo clics.
+      let marcaVisibles: () => void = () => {};
+
+      // Cada trozo de texto que se escribe con el scroll: sus palabras, dónde
+      // empieza en la línea de tiempo y cuánto dura. Se pinta desde el reloj.
+      type Tramo = { ps: HTMLElement[]; reparto: number; a: number; largo: number; el?: HTMLElement; suelo: number; cap?: HTMLElement | null; desde: number; hasta: number };
+      const tramos: Tramo[] = [];
+      const pintaTramos = () => {
+        const t = tl.time();
+        const destinoT = (tl.scrollTrigger?.progress ?? tl.progress()) * tl.duration();
+        for (const tr of tramos) {
+          const bruto = Math.min(1, Math.max(0, (t - tr.a) / tr.largo));
+          // El capítulo que se fue deja su suelo a cero: cuando vuelva, vuelve a
+          // escribirse. Lo que no puede pasar es que se lea a medio trazo.
+          // Se mide con el destino del scroll, no con la opacidad de ahora: el
+          // `scrub` va medio segundo por detrás y borraba lo recién escrito.
+          if (tr.suelo && (destinoT < tr.desde || destinoT > tr.hasta)) {
+            gsap.killTweensOf(tr);
+            tr.suelo = 0;
+          }
+          const v = Math.max(bruto, tr.suelo);
+          if (tr.el) tr.el.dataset.escrito = String(v);
+          pintaTinta(tr.ps, v, tr.reparto);
+        }
+      };
+
+      // El efecto solo corre mientras se baja. En cuanto la página se para, lo
+      // que esté en pantalla termina de escribirse: un texto a medio trazo es
+      // un texto ilegible, y quieto nadie puede terminarlo. Medido a 390: al
+      // soltar el scroll en la entrada de un capítulo quedaban palabras a cero.
+      // Lo mismo que la tinta, pero con el capítulo y la puerta: parado dentro
+      // de un fundido se leía media palabra a opacidad .46 y desplazada. Se
+      // define más abajo, cuando ya existen las ventanas.
+      let asientaEscena: (p: number) => void = () => {};
+      // Los tweens de reposo se guardan aparte para poder quitarlos en cuanto el
+      // scroll se mueve otra vez: matarlos por objetivo (`killTweensOf`) se
+      // llevaría por delante los tweens de la propia línea de tiempo.
+      const asentados: gsap.core.Tween[] = [];
+      // El `scrub` sigue pintando medio segundo después de soltar el scroll, y
+      // una vez por tick vuelve a escribir la opacidad: un tween suelto sobre el
+      // mismo elemento se pinta y se borra. Por eso el reposo es un suelo que se
+      // vuelve a aplicar después de cada render de la línea de tiempo, igual que
+      // el suelo de la tinta.
+      const reposo = new Map<HTMLElement, Record<string, number>>();
+      const sueltaEscena = () => { asentados.splice(0).forEach((t) => t.kill()); reposo.clear(); };
+
+      let esperaQuieto: number | undefined;
+      const alPararElScroll = () => {
+        sueltaEscena();
+        clearTimeout(esperaQuieto);
+        esperaQuieto = setTimeout(() => {
+          // Se mira a dónde va la línea de tiempo, no dónde está: el `scrub`
+          // llega medio segundo tarde y con la posición de ahora el capítulo
+          // que va a quedar en pantalla todavía no cuenta como visible.
+          const destinoT = (tl.scrollTrigger?.progress ?? tl.progress()) * tl.duration();
+          for (const tr of tramos) {
+            if (tr.suelo >= 1) continue;
+            if (destinoT < tr.desde || destinoT > tr.hasta) continue;
+            gsap.to(tr, { suelo: 1, duration: .45, ease: 'power2.out', overwrite: true, onUpdate: pintaTramos });
+          }
+          asientaEscena(tl.scrollTrigger?.progress ?? tl.progress());
+        }, 140) as unknown as number;
+      };
+
+      const tl = gsap.timeline({
+        defaults: { ease: 'none' },
+        scrollTrigger: {
+          trigger: seccion,
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: .6,
+          invalidateOnRefresh: true,
+          onRefresh: () => marcaVisibles(),
+        },
+      });
+
+      // La cámara entra en el valle: cada plano a su velocidad (Escape Cafe/Atlas).
+      // Duración 1 = todo el recorrido: así cada posición de abajo es una fracción del scroll.
+      // A 390 px el encuadre es otro, no el mismo recorte escalado: la pintura es
+      // apaisada (2,34:1) y en un marco vertical `cover` la mete entera, así que el
+      // cielo se comía dos tercios de la pantalla. El zoom arranca ya dentro del valle.
+      // El zoom de móvil estaba entre 1,7 y 3,1 *encima* del recorte `cover`, que
+      // en un marco vertical ya amplía 2,03: el primer plano se pintaba a 1209 px
+      // con 858 reales y la hierba salía en papilla, tapando el valle. Con el
+      // tope en 1,5 se ve más valle, se ve nítido y la cámara sigue entrando.
+      const movil = matchMedia('(max-width: 900px)').matches;
+      const z = movil ? { fondo: [1, 1.22], lado: [1.04, 1.34], frente: [1, 1.5] } : { fondo: [1.02, 1.18], lado: [1.08, 1.46], frente: [1.02, 2.1] };
+      tl.fromTo(capa('fondo'), { yPercent: 0, scale: z.fondo[0] }, { yPercent: -3, scale: z.fondo[1], duration: 1 }, 0)
+        .fromTo(capa('izq'), { xPercent: 0, scale: z.lado[0] }, { xPercent: movil ? -10 : -17, scale: z.lado[1], duration: 1 }, 0)
+        .fromTo(capa('der'), { xPercent: 0, scale: z.lado[0] }, { xPercent: movil ? 10 : 17, scale: z.lado[1], duration: 1 }, 0)
+        .fromTo(capa('frente'), { yPercent: 0, scale: z.frente[0] }, { yPercent: 9, scale: z.frente[1], duration: 1 }, 0)
+        .fromTo('[data-bruma]', { yPercent: 14, opacity: .95 }, { yPercent: -10, opacity: .35, duration: 1 }, 0);
+
+      // El primer capítulo aguanta media pantalla y luego sube con la página (Atlas).
+      tl.fromTo(caps[0], { yPercent: 0 }, { yPercent: -15, duration: .12, ease: 'power1.in' }, .07);
+
+      // Los selectores de esta línea de tiempo se buscan dentro del hero, nunca
+      // en toda la página: `[data-tinta]` también lo llevan los bloques de
+      // `TextoTinta` del resto de la portada, y la línea de tiempo del hero los
+      // apagaba a opacidad 0 (medido: los párrafos de «Un corpus que se puede
+      // auditar» salían en blanco).
+      const en = (sel: string) => seccion.querySelectorAll<HTMLElement>(sel);
+
+      // La luz acompaña al texto de cada capítulo: a la izquierda, luego al centro, y se apaga en la tinta.
+      tl.to(en('[data-luz]'), { opacity: 0, duration: .05 }, .165)
+        .to(en('[data-luz-centro]'), { opacity: 1, duration: .05 }, .22)
+        .to(en('[data-luz-centro]'), { opacity: 0, duration: .04 }, .42)
+        .to(en('[data-luz-centro]'), { opacity: 1, duration: .04 }, .83);
+
+      // Capítulos: ventanas que no se solapan en ningún décimo del recorrido.
+      // El primero cede antes (la portada tiene que ir diciendo otra cosa): al 20 %
+      // del scroll ya está entrando el segundo, no repitiendo la misma pantalla.
+      // Ventanas pegadas una a otra: antes quedaban huecos de .03 a .05 del
+      // recorrido entre capítulo y capítulo, y en ellos no había ni una frase
+      // legible en pantalla (se contaron 10 posiciones de aire muerto).
+      // Ahora un capítulo entra mientras el anterior sale, sin pantalla vacía.
+      const ventanas: Array<[number, number]> = [[0, .21], [.234, .42], [.444, .80], [.824, 1]];
+      // El que sale termina de salir antes de que el siguiente empiece a entrar:
+      // con fundido cruzado el titular gigante del capítulo 2 se imprimía encima
+      // de la etiqueta del 3. Entre uno y otro queda un instante, no una pantalla.
+      const CAP_FUNDIDO = .012;
+      caps.forEach((cap, i) => {
+        const [a, b] = ventanas[i];
+        if (i > 0) tl.to(cap, { opacity: 1, duration: CAP_FUNDIDO }, a - CAP_FUNDIDO);
+        // Sin `inert`: dentro hay enlaces, y `inert` los borraba del tabulador
+        // (16 pulsaciones desde arriba, cero paradas en el hero). El revelado es
+        // solo visual; quien llega con el teclado adelanta el scroll (ver abajo).
+        tl.to(cap, { opacity: 1, duration: .001 }, a);
+        if (i < ventanas.length - 1) tl.to(cap, { opacity: 0, duration: CAP_FUNDIDO }, b);
+      });
+
+      // Letras que suben desde la máscara, escalonadas (Atlas: cada letra un elemento).
+      const entrada: Array<[HTMLElement, number, number]> = [];
+      caps.forEach((cap, i) => {
+        if (i === 0) return; // el primer capítulo se escribe al cargar, no al scrollear
+        const [a, b] = ventanas[i];
+        // Empieza a escribirse mientras el capítulo entra y termina antes del siguiente décimo
+        // del recorrido: así nunca se mide (ni se lee) a mitad de trazo.
+        cap.querySelectorAll<HTMLElement>('[data-letras]').forEach((el, j) => entrada.push([el, a - .02 + j * .008, b]));
+        cap.querySelectorAll<HTMLElement>('.tinta').forEach((el) => entrada.push([el, a + .005, b]));
+      });
+      // La tinta del recorrido se lee del reloj de la línea de tiempo, no de un
+      // tween sobre un objeto suelto. Con `invalidateOnRefresh` ese tween vuelve
+      // a grabar su valor de partida cada vez que se rehacen las medidas —y se
+      // rehacen al cargar las pinturas de más abajo—, y entonces la palabra se
+      // quedaba sin escribir con el capítulo ya en pantalla. Medido a 390: la
+      // cita de cierre salía en blanco (paso 0) desde el final del hero.
+      entrada.forEach(([el, inicio]) => {
+        const cap = el.closest<HTMLElement>('.cap');
+        // La ventana del capítulo al que pertenece: es la que dice si, parados
+        // ahí, ese texto se va a quedar en pantalla.
+        const [desde, hasta] = ventanas[Math.max(0, caps.indexOf(cap!))];
+        const ls = letras.get(el);
+        if (ls) tramos.push({ ps: ls, reparto: REPARTO.tinta, a: inicio, largo: .05, el, suelo: 0, cap, desde: desde - .03, hasta });
+        const t = tintas.get(el);
+        if (t) tramos.push({ ps: t.palabras, reparto: t.reparto, a: inicio, largo: .06, suelo: 0, cap, desde: desde - .03, hasta });
+      });
+      addEventListener('scroll', alPararElScroll, { passive: true });
+      alPararElScroll();
+
+      // El objeto que entra sobre el paisaje: la cita insignia.
+      const objeto = seccion.querySelector<HTMLElement>('[data-objeto]');
+      if (objeto) {
+        // Entra pegada al capítulo, no un cuarto de pantalla después. Medido a
+        // 390 en y=844: sin la cita, la mitad baja del fotograma es un vacío
+        // crema de 25 % de alto (mediana 249, sin un solo borde) entre la
+        // ribera y la hierba. Eso es lo que se lee como «blanco», y no se arregla con
+        // color: lo que falta ahí es la cita.
+        tl.fromTo(objeto, { yPercent: 26, opacity: 0, rotate: 1.2 }, { yPercent: 0, opacity: 1, rotate: 0, duration: .07 }, .246);
+      }
+
+      // Capítulo del proceso: el lavado de tinta y las palabras gigantes 01→04.
+      // El velo baja de .9 a .62: este valle se eligió por claro y luminoso,
+      // y a .9 era una losa verde. A .62 el karst y el río se siguen viendo.
+      // El velo entra *antes* que el capítulo: si no, la etiqueta y el contador,
+      // que son de color claro, aparecen un instante sobre el valle luminoso
+      // (medido: 2,3 de contraste al 40 % del scroll).
+      tl.to(en('[data-tinta]'), { opacity: .72, duration: .05 }, .37)
+        .to(en('[data-tinta]'), { opacity: 0, duration: .03 }, .79);
+      // Una puerta cada vez, sin fundido cruzado: la saliente termina de salir
+      // justo donde empieza a entrar la siguiente. Antes se solapaban .02 del
+      // recorrido y a 390 px se imprimían dos palabras y dos frases encimadas.
+      const PASO_INICIO = .45, PASO_LARGO = .085, PASO_FUNDIDO = .014;
+      // El desplazamiento va en píxeles, no en porcentaje del ancho: la puerta
+      // ocupa todo el ancho de la columna, así que un 14 % son 49 px a 390 y la
+      // palabra entraba y salía *por fuera* de la pantalla. Medido parando el
+      // scroll en la entrada de la primera puerta: «SABIDURÍA» empezaba en
+      // x = −9 px, con la S cortada por el canto. El margen lateral del
+      // capítulo a 390 es 17,6 px: 12 px de carrera caben dentro y se ven.
+      const PASO_CARRERA = movil ? 12 : 30;
+      pasos.forEach((paso, i) => {
+        const a = PASO_INICIO + i * PASO_LARGO;
+        tl.fromTo(paso, { opacity: 0, x: PASO_CARRERA }, { opacity: 1, x: 0, duration: PASO_FUNDIDO }, a)
+          .to(paso, { opacity: 0, x: -PASO_CARRERA, duration: PASO_FUNDIDO }, a + PASO_LARGO - PASO_FUNDIDO);
+      });
+
+      // Parado dentro de un fundido, lo que se ve a medias termina de verse.
+      // Los fundidos duran .012–.014 del recorrido: ~60 px de scroll, y ahí se
+      // para cualquiera. Medido a 390 antes de esto: en y=1688 la puerta 01
+      // «SABIDURÍA» se quedaba a opacidad .46. El movimiento es del scroll; en
+      // reposo no hay estados a medias.
+      asientaEscena = (p) => {
+        sueltaEscena();
+        let iCap = 0;
+        ventanas.forEach(([a], i) => { if (p >= a - CAP_FUNDIDO / 2) iCap = i; });
+        const dentroPuertas = p >= PASO_INICIO && p <= PASO_INICIO + pasos.length * PASO_LARGO - PASO_FUNDIDO / 2;
+        const iPaso = dentroPuertas
+          ? Math.min(pasos.length - 1, Math.max(0, Math.floor((p - PASO_INICIO) / PASO_LARGO)))
+          : -1;
+        // De dónde sale y a dónde va cada uno; el reposo interpola entre ambos
+        // para que el remate se vea como un gesto, no como un salto.
+        const viaje: Array<[HTMLElement, Array<[string, number, number]>]> = [];
+        // Entran todos, también los que ahora mismo ya están donde deben: el
+        // `scrub` todavía tiene medio segundo de carrera por delante y, sin su
+        // línea en el suelo, el capítulo siguiente se quedaba asomando a .08.
+        const anota = (el: HTMLElement, fines: Record<string, number>) => {
+          viaje.push([el, Object.entries(fines).map(
+            ([k, v]) => [k, Number(gsap.getProperty(el, k)), v] as [string, number, number])]);
+        };
+        caps.forEach((cap, i) => anota(cap, { opacity: i === iCap ? 1 : 0 }));
+        pasos.forEach((paso, i) => anota(paso, i === iPaso ? { opacity: 1, x: 0 } : { opacity: 0 }));
+        // La cita insignia es la que llena la mitad baja del capítulo dos: o
+        // está entera o no está. A medio entrar deja el vacío que se rechazó.
+        if (objeto) {
+          const conCita = p >= ventanas[1][0] && p <= ventanas[1][1];
+          anota(objeto, conCita ? { opacity: 1, yPercent: 0, rotate: 0 } : { opacity: 0 });
+        }
+        const mezcla = { v: 0 };
+        const pinta = () => {
+          for (const [el, props] of viaje) {
+            const v: Record<string, number> = {};
+            for (const [k, a, b] of props) v[k] = a + (b - a) * mezcla.v;
+            reposo.set(el, v);
+          }
+          marcaVisibles();
+        };
+        asentados.push(gsap.to(mezcla, { v: 1, duration: .3, ease: 'power2.out', onUpdate: pinta, onComplete: pinta }));
+        pinta();
+      };
+
+      // La etiqueta se va con la última puerta, no con el marco del capítulo.
+      // Se quedaba sola en pantalla al 80 % del recorrido —una pantalla entera
+      // con un rótulo de 16 px y nada más— y ahí el valle ya se ha aclarado: a
+      // 390 el fondo pasa de rgb(82,92,72) a rgb(106,121,100) y la seda clara
+      // cae a 3,24:1 (mínimo 4,5). No es un color que se pueda subir: contra ese
+      // gris medio ni el blanco puro (4,45:1) ni la tinta (4,2:1) llegan a AA.
+      // Rotular cuatro puertas que ya no están es lo que sobra, no el color.
+      tl.to(en('.cap__etiqueta--tres'), { opacity: 0, duration: PASO_FUNDIDO },
+        PASO_INICIO + (pasos.length - 1) * PASO_LARGO + PASO_LARGO - PASO_FUNDIDO);
+      // Un solo capítulo y una sola puerta reciben el puntero en cada posición:
+      // los demás están a opacidad 0 y encima, así que sin esto se quedaban
+      // mordiendo el clic (tres de las cuatro puertas llevaban a /oracle).
+      // Se mira la opacidad que la línea de tiempo acaba de pintar, no la ventana
+      // teórica: entre ventana y ventana hay fundidos, y ahí la puerta se sigue
+      // viendo. Lo que se ve, se puede pulsar; lo que no, no estorba.
+      const mando = (el: HTMLElement) => el.toggleAttribute('data-visible', Number(gsap.getProperty(el, 'opacity')) > .5);
+      marcaVisibles = () => {
+        // El suelo de reposo se aplica antes de decidir quién recibe el puntero:
+        // lo que se ve se puede pulsar, y aquí «lo que se ve» ya es el remate.
+        reposo.forEach((v, el) => gsap.set(el, v));
+        caps.forEach(mando);
+        pasos.forEach(mando);
+        pintaTramos();
+      };
+      tl.eventCallback('onUpdate', marcaVisibles);
+      marcaVisibles();
+
+      // El cierre no se queda quieto: la cita sube despacio mientras la cámara sigue entrando.
+      tl.fromTo(en('.cita--cierre'), { yPercent: 5 }, { yPercent: -3, duration: .16 }, .824);
+      // El «Baja ↓» se va en cuanto el scroll empieza: invitar a hacer lo que ya
+      // estás haciendo durante una pantalla entera es ruido.
+      tl.to(en('.cap__cue'), { opacity: 0, duration: .03 }, .045);
+
+      // Teclado: el revelado es visual, así que quien llega con el tabulador a una
+      // puerta o al botón adelanta el scroll hasta el tramo donde esa cosa se ve.
+      // Sin esto el foco cae en texto invisible (WCAG 2.1.1 y 2.4.7).
+      const destino = new Map<HTMLElement, number>();
+      pasos.forEach((paso, i) => {
+        const p = PASO_INICIO + i * PASO_LARGO + PASO_LARGO / 2;
+        paso.querySelectorAll<HTMLElement>('a').forEach((a) => destino.set(a, p));
+      });
+      caps[3]?.querySelectorAll<HTMLElement>('a').forEach((a) => destino.set(a, .92));
+      const alTramo = (ev: FocusEvent) => {
+        const el = (ev.target as HTMLElement)?.closest?.('a') as HTMLElement | null;
+        const p = el && destino.get(el);
+        if (p === undefined || p === null) return;
+        const carril = seccion.offsetHeight - innerHeight;
+        const y = seccion.offsetTop + p * carril;
+        // Solo si no se ve ya: si el ratón ya te dejó ahí, no des un salto.
+        if (Math.abs(scrollY - y) < innerHeight * .25) return;
+        scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+        ScrollTrigger.update();
+      };
+      seccion.addEventListener('focusin', alTramo);
+
+      return () => {
+        removeEventListener('scroll', alPararElScroll);
+        sueltaEscena();
+        clearTimeout(esperaQuieto);
+        seccion.removeEventListener('focusin', alTramo);
+        letras.forEach((_, el) => { el.textContent = el.getAttribute('aria-label'); });
+        // La tinta vuelve a palabra entera: el texto ya estaba en el DOM.
+        tintas.forEach(({ palabras }, el) => {
+          delete el.dataset.tintaListo;
+          olvidaTinta(palabras);
+        });
+      };
+    });
+
+    // Aquí había un `addEventListener('load', () => ScrollTrigger.refresh())`.
+    // ScrollTrigger ya recalcula por su cuenta en `load` (está en sus
+    // `autoRefreshEvents` de fábrica), así que eran dos recálculos completos
+    // seguidos justo cuando acaban de llegar las pinturas: el momento más caro
+    // de la carga.
+  }
+</script>

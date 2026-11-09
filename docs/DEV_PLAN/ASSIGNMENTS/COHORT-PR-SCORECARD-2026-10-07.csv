@@ -4,9 +4,9 @@ E1,61,content-task1,content-task1-facet-routes,gontugithub,https://github.com/ru
 E1,62,content-task2,content-task2-breadcrumbs,gontugithub,https://github.com/ruvebal/ttod/pull/62,24,25,20,10,10,9,98,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-12 Breadcrumbs + copy.notFound,1-content
 E1,63,content-task3,content-task3-empty-error-states,gontugithub,https://github.com/ruvebal/ttod/pull/63,25,25,20,9,10,9,98,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-11 HOLD skim,1-content
 E1,64,content-task4,content-task4-propose-form,gontugithub,https://github.com/ruvebal/ttod/pull/64,25,25,20,10,10,9,99,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-11 HOLD skim,1-content
-E1,65,content-task5,content-task5-provenance,gontugithub,https://github.com/ruvebal/ttod/pull/65,,,,,,,,,—,—,CHANGES_REQUESTED,OPEN,AMEND provenance on all surfaces,1-content
-E1,67,content-task6,content-task6-content-tests,gontugithub,https://github.com/ruvebal/ttod/pull/67,,,,,,,,,—,—,CHANGES_REQUESTED,OPEN,AMEND propose-form component test,1-content
-E1,68,content-task9,content-task9-design-decision,gontugithub,https://github.com/ruvebal/ttod/pull/68,,,,,,,,,—,—,CHANGES_REQUESTED,OPEN,AMEND design-decision tip alignment,1-content
+E1,65,content-task5,content-task5-provenance,gontugithub,https://github.com/ruvebal/ttod/pull/65,24,25,20,10,10,9,98,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-15 ProvenanceBlock all surfaces + tests,1-content
+E1,67,content-task6,content-task6-content-tests,gontugithub,https://github.com/ruvebal/ttod/pull/67,24,24,20,10,10,9,97,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-15 ProposeForm component test + frequencies,1-content
+E1,68,content-task9,content-task9-design-decision,gontugithub,https://github.com/ruvebal/ttod/pull/68,24,24,18,10,10,9,95,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-15 DECISION-T9 aligned to tip,1-content
 E1,—,content-task8,formal-review-other-module,gontugithub,—,,,,,,,,,—,—,—,WAIVED,Instructor class waiver 2026-10-15,1-content
 E1,—,content-task7,pr-into-other-module,gontugithub,—,,,,,,,,,—,—,—,WAIVED,Instructor class waiver 2026-10-15 no cross-team commits,1-content
 E2,48,graph-task1,graph-task1-fetch-from-api,gpfc-git,https://github.com/ruvebal/ttod/pull/48,25,24,20,10,10,9,98,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-08,2-graph
@@ -18,7 +18,7 @@ E2,76,graph-task6,graph-task6-keyboard-operabililty,gpfc-git,https://github.com/
 E2,77,graph-task7,graph-task7-graph-island-tests,gpfc-git,https://github.com/ruvebal/ttod/pull/77,24,24,20,10,10,9,97,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-15 GraphIsland component test,2-graph
 E2,78,graph-task8,graph-task8-pr-into-different-module,gpfc-git,https://github.com/ruvebal/ttod/pull/78,24,24,18,9,10,9,94,SUCCESS,—,—,APPROVED,MERGED,MERGED 2026-10-15 related-wisdom cross-module,2-graph
 E2,—,graph-task9,formal-review-other-module,gpfc-git,—,,,,,,,,,—,—,—,WAIVED,Instructor class waiver 2026-10-15,2-graph
-E2,—,graph-task10,design-decision-doc,gpfc-git,—,,,,,,,,,—,—,—,PENDING,No tip PR/memo found,2-graph
+E2,—,graph-task10,design-decision-doc,gpfc-git,—,,,,,,,,,—,—,—,NO_TIP_PR,No tip PR filed oral-only if any,2-graph
 E3,44,oracle-task1,oracle-task1-streamed-response-rendering,Andreavilaro0,https://github.com/ruvebal/ttod/pull/44,24,24,18,9,10,8,93,—,—,—,—,CLOSED,CLOSED 2026-10-13 superseded by #42 cumulative,3-oracle
 E3,45,oracle-task2,oracle-task2-live-region-announcement,Andreavilaro0,https://github.com/ruvebal/ttod/pull/45,24,24,18,10,10,8,94,—,—,—,—,CLOSED,CLOSED 2026-10-13 superseded by #42,3-oracle
 E3,38,oracle-task3,oracle-task3-grounded-creative-disclosure,Andreavilaro0,https://github.com/ruvebal/ttod/pull/38,24,24,18,10,10,8,94,—,—,—,—,CLOSED,CLOSED 2026-10-13 superseded by #42,3-oracle

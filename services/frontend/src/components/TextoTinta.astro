@@ -1,0 +1,303 @@
+---
+/**
+ * Palabras que empapan el papel.
+ *
+ * El texto no aparece con un «fade-up» genérico: cada palabra se revela a
+ * través de una máscara de tinta real —14 estados de una aguada del propio
+ * rollo de Dong Qichang, recortada a resolución nativa (ver
+ * `public/visual-system/CREDITOS.md`)—. Cada estado es
+ * binario, así que la palabra nunca se queda a medio opaco: no hay fundido y
+ * no hay desenfoque, hay tinta que llega a manchas y se junta.
+ *
+ * Dos modos, los dos ligados al scroll:
+ * - `tinta`  — citas: palabra a palabra, la clave en el rojo del sello.
+ * - `niebla` — recorrido del paisaje: la frase emerge de la niebla, de pálida
+ *   a tinta llena, y va con su capa (`velocidad`).
+ *
+ * Quien pida no moverse (`prefers-reduced-motion`) y quien no tenga JS ven el
+ * texto quieto y entero: el estado por defecto es la palabra completa.
+ *
+ * El hero tiene su propia línea de tiempo con capítulos relevados;
+ * para engancharlo ahí se pone `manual` y se escribe `--tinta-p` (0 a 13)
+ * desde su ScrollTrigger. El CSS de aquí hace el resto.
+ */
+interface Props {
+  texto: string;
+  as?: string;
+  modo?: 'tinta' | 'niebla';
+  /** Palabra o palabras que van en el rojo del sello. */
+  clave?: string;
+  /** Solo en `niebla`: 0 es el fondo quieto, 1 el primer plano. */
+  velocidad?: number;
+  manual?: boolean;
+  class?: string;
+  /** El idioma de la cita, que no siempre es el de la página. */
+  lang?: string;
+}
+
+const {
+  texto,
+  // La etiqueta es dinámica, así que TypeScript no puede saber qué atributos admite.
+  as: Tag = 'p' as any,
+  modo = 'tinta',
+  clave,
+  velocidad = 0,
+  manual = false,
+  class: extra,
+  lang,
+} = Astro.props as Props;
+
+const PASOS = 14;
+
+/** Sin acentos ni puntuación, para comparar con la palabra clave. */
+const pelar = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^\p{L}\p{N}]/gu, '')
+    .toLowerCase();
+
+const claves = new Set((clave ?? '').split(/\s+/).filter(Boolean).map(pelar));
+
+/**
+ * Qué trozo de la textura toca a cada palabra. Determinista a propósito: con
+ * `Math.random` el servidor y el cliente pintarían manchas distintas y Astro
+ * avisaría de la discrepancia.
+ */
+const trozo = (palabra: string, i: number) => {
+  let h = i * 2654435761;
+  for (const c of palabra) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return (h % 700) / 100; // 0 a 7 em dentro del fotograma, que mide 12 em
+};
+
+const piezas = texto.split(/(\s+)/);
+let orden = 0;
+const palabras = piezas.map((pieza) => {
+  if (/^\s+$/.test(pieza) || pieza === '') return { espacio: pieza };
+  const i = orden++;
+  return { texto: pieza, i, x: trozo(pieza, i), sello: claves.has(pelar(pieza)) };
+});
+const total = orden;
+---
+
+<Tag
+  class:list={['tinta', `tinta--${modo}`, extra]}
+  lang={lang}
+  data-tinta={manual ? null : modo}
+  data-tinta-modo={modo}
+  style={`--tinta-total:${total};--tinta-pasos:${PASOS};--tinta-velocidad:${velocidad}`}
+>
+  {
+    palabras.map((p) =>
+      'espacio' in p ? (
+        p.espacio
+      ) : (
+        <span
+          class:list={['tinta__p', p.sello && 'tinta__p--sello']}
+          style={`--i:${p.i};--x:${p.x}`}
+        >
+          {p.texto}
+        </span>
+      )
+    )
+  }
+</Tag>
+
+<style>
+  .tinta {
+    /* La palabra entera es el estado por defecto: sin JS, sin scroll o con
+       movimiento desactivado, el texto se lee quieto y completo. */
+    --tinta-p: calc(var(--tinta-pasos) - 1);
+  }
+
+  /* La máscara solo cuando el script confirma que la hoja de tinta está
+     descargada: sin JS, o si el archivo falla, el texto se lee entero. */
+  [data-tinta-listo] .tinta__p {
+    display: inline-block;
+    /* El fotograma mide 12 × 3 em, y la hoja apila 14. Medido en `em` y no en
+       porcentaje para que el grano de la tinta tenga el mismo tamaño en una
+       palabra corta y en una larga; con `%` las palabras cortas salían con la
+       textura aplastada. */
+    --tinta-foto-w: 12em;
+    --tinta-foto-h: 3em;
+    /* La copia que ya bajó el guion (`lib/tinta.ts`), para no pedirla otra vez. */
+    -webkit-mask-image: var(--tinta-hoja, url('/visual-system/tinta/difusion-tinta.webp'));
+    mask-image: var(--tinta-hoja, url('/visual-system/tinta/difusion-tinta.webp'));
+    /* La hoja guarda la tinta en gris, no en alfa: sin esto el navegador lee
+       el alfa —opaco de punta a punta en un WebP sin canal— y la máscara no
+       esconde nada (medido: las palabras salían enteras desde el paso 0). */
+    -webkit-mask-source-type: luminance;
+    mask-mode: luminance;
+    /* Se repite a lo ancho y no a lo alto: a lo alto cada fila es otro
+       estado de la tinta y se colarían dos a la vez; a lo ancho, sin repetir,
+       toda palabra más larga que el fotograma se cortaba en seco por el borde
+       —se veía como un recorte, no como tinta— (medido en pantalla). */
+    -webkit-mask-repeat: repeat no-repeat;
+    mask-repeat: repeat no-repeat;
+    -webkit-mask-size: var(--tinta-foto-w) calc(var(--tinta-foto-h) * var(--tinta-pasos));
+    mask-size: var(--tinta-foto-w) calc(var(--tinta-foto-h) * var(--tinta-pasos));
+    -webkit-mask-position: calc(var(--x) * -1em) calc(var(--p, var(--tinta-p)) * var(--tinta-foto-h) * -1);
+    mask-position: calc(var(--x) * -1em) calc(var(--p, var(--tinta-p)) * var(--tinta-foto-h) * -1);
+  }
+
+  /* La clave de la cita, en el rojo del sello. */
+  [data-tinta-listo] .tinta__p--sello,
+  .tinta__p--sello {
+    color: var(--ttod-color-seal, #9a3324);
+  }
+
+  /* El recorrido del paisaje: además de la máscara, la frase llega pálida,
+     como vista a través de la niebla, y se asienta en tinta llena. Tono, no
+     `blur`: un desenfoque de CSS deja el texto sucio y es lo que se rechazó. */
+  [data-tinta-listo].tinta--niebla .tinta__p {
+    color: color-mix(
+      in oklab,
+      var(--ttod-color-ink, #1b1710) calc(42% + 58% * var(--p, var(--tinta-p)) / (var(--tinta-pasos) - 1)),
+      var(--ttod-color-paper, #efe9dc)
+    );
+  }
+
+</style>
+
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  import { REPARTO, cargaHojaTinta, enciendeTinta, pintaTinta } from '../lib/tinta';
+
+  const quieto = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let enganchados = 0;
+
+  type Bloque = { bloque: HTMLElement; estado: { avance: number; escrito: boolean }; pintar: (a: number) => void };
+  const bloques: Bloque[] = [];
+
+  const cargada = await cargaHojaTinta();
+
+  // Los bloques se encienden al final, uno por fotograma: aplicar la máscara a
+  // todos a la vez era varios cientos de palabras repintadas en el mismo
+  // fotograma. Cada uno queda ya pintado en su paso antes de que se
+  // le vea la máscara, así que nadie ve una palabra a medias.
+  const porEncender: HTMLElement[] = [];
+
+  for (const bloque of document.querySelectorAll<HTMLElement>('[data-tinta]')) {
+    if (bloque.dataset.tintaListo) continue;
+    if (quieto.matches || !cargada) continue;
+    porEncender.push(bloque);
+
+    const palabras = Array.from(bloque.querySelectorAll<HTMLElement>('.tinta__p'));
+    if (!palabras.length) continue;
+
+    const pasos = Number(bloque.style.getPropertyValue('--tinta-pasos')) || 14;
+    const niebla = bloque.dataset.tinta === 'niebla';
+    const reparto = niebla ? REPARTO.niebla : REPARTO.tinta;
+
+    // La tinta no se seca hacia atrás: una vez escrita una palabra, se queda.
+    // Así el scroll hacia arriba no borra lo que ya se leyó, y la frase que el
+    // paso siguiente termina de escribir no vuelve a medias.
+    const estado = { avance: 0, escrito: false };
+    const pintar = (avance: number) => {
+      if (estado.escrito) return;
+      estado.avance = Math.max(estado.avance, avance);
+      if (estado.avance >= 1) estado.escrito = true;
+      bloque.dataset.tintaAvance = estado.avance.toFixed(2);
+      pintaTinta(palabras, estado.avance, reparto, pasos);
+    };
+
+    pintar(0);
+
+    const tramo = ScrollTrigger.create({
+      trigger: bloque,
+      // La tinta corre mientras el bloque asoma por el canto de abajo y queda
+      // escrita **antes de entrar en la zona de lectura**. Con el tramo
+      // anterior (`top 88%` → `top 42%`) un párrafo parado en mitad de la
+      // pantalla seguía a medio escribir: medido a 390, «TTOD reúne 230 citas»
+      // en 0,66 con su canto alto al 63 % de la pantalla, y «El corpus crece»
+      // en 0,58 al 74 %. Se leía a medias en reposo, que es justo lo que no
+      // puede pasar: el efecto solo tiene sentido en movimiento.
+      // Ahora, a partir del 76 % de la pantalla hacia arriba, la palabra está
+      // entera. Lo que todavía escribe está en el cuarto de abajo, entrando.
+      start: 'top 96%',
+      end: 'top 76%',
+      // Sin `scrub`: aquí no hay tween que escalar, se lee el progreso a mano.
+      // Con `scrub` el progreso se delega a una animación que no existe y
+      // `onUpdate` no llega a saltar (medido: ningún bloque pintaba).
+      onUpdate: (self) => pintar(self.progress),
+    });
+
+    // El estado de partida es el que toca a la posición actual, no cero. Si se
+    // recarga a media página (el navegador devuelve el scroll donde estaba) el
+    // tramo nace con progreso 1, `onUpdate` no llega a saltar porque nada
+    // cambia, y el párrafo se quedaba invisible. Medido a 390 saltando al pie.
+    pintar(tramo.progress);
+    bloques.push({ bloque, estado, pintar });
+
+    // La frase va con su capa: cuanto más cerca, más la arrastra el scroll.
+    const velocidad = Number(bloque.style.getPropertyValue('--tinta-velocidad')) || 0;
+    if (niebla && velocidad) {
+      gsap.fromTo(
+        bloque,
+        { y: 34 * velocidad },
+        {
+          y: -34 * velocidad,
+          ease: 'none',
+          scrollTrigger: { trigger: bloque, start: 'top bottom', end: 'bottom top', scrub: true },
+        }
+      );
+    }
+    enganchados++;
+  }
+
+  enciendeTinta(porEncender);
+
+  // Los tramos se miden en píxeles al crearlos, y aquí el texto es el que
+  // manda: en cuanto carga la tipografía propia cambian todas las alturas y
+  // los tramos quedan apuntando a otro sitio (medido: bloques enteros se
+  // quedaban sin pintar). Por eso se vuelven a medir con la fuente ya puesta.
+  if (enganchados) {
+    ScrollTrigger.refresh();
+    document.fonts?.ready.then(() => ScrollTrigger.refresh());
+  }
+
+  // La tinta corre mientras se baja; cuando la página se para, todo lo que esté
+  // en pantalla termina de escribirse. Un párrafo a medio escribir es un
+  // párrafo ilegible, y quieto nadie lo puede terminar: el efecto solo tiene
+  // sentido en movimiento. Medido a 390: los cuerpos de «Un corpus que se puede
+  // auditar» y «¿Falta una cita?» se quedaban a medias al soltar el scroll.
+  if (bloques.length) {
+    let espera: number | undefined;
+
+    const termina = () => {
+      for (const b of bloques) {
+        if (b.estado.escrito) continue;
+        const caja = b.bloque.getBoundingClientRect();
+        // Solo lo que se ve: lo que aún está fuera de pantalla se escribirá a
+        // su paso, con el scroll, que es donde el efecto cuenta algo.
+        if (caja.bottom < 0 || caja.top > innerHeight) continue;
+        gsap.to(b.estado, {
+          avance: 1,
+          // Lo que queda sin escribir al parar está en el canto de abajo; se
+          // termina en un suspiro. Con .55 s el párrafo seguía a medias medio
+          // segundo después de soltar, y eso se ve como texto roto, no como
+          // tinta corriendo.
+          duration: .3,
+          ease: 'power2.out',
+          overwrite: true,
+          onUpdate: () => b.pintar(b.estado.avance),
+          onComplete: () => b.pintar(1),
+        });
+      }
+    };
+
+    const alParar = () => {
+      clearTimeout(espera);
+      // 90 ms: por debajo salta entre dos ruedas del ratón seguidas y la tinta
+      // se adelanta al scroll; por encima se nota el retraso al soltar.
+      espera = setTimeout(termina, 90) as unknown as number;
+    };
+
+    addEventListener('scroll', alParar, { passive: true });
+    alParar();
+  }
+</script>

@@ -53,10 +53,13 @@ describe('breadcrumb hierarchy across content routes', () => {
     expect(crumbLinks(main)).toEqual([]);
   });
 
-  it('facet route: Wisdom (linked) › raw facet value (current)', async () => {
+  // El slug (`architecture`) sigue mandando en la URL y en el backend; la miga
+  // de pan enseña el rótulo de la sección, que es lo que se lee. Una página en
+  // español que dice «beginner» está a medio traducir.
+  it('facet route: Wisdom (linked) › facet label (current)', async () => {
     fetchWisdom.mockResolvedValue([entry]);
     const main = await render(SectionRoute, '/en/wisdom/sections/architecture/', { locale: 'en', section: 'architecture' });
-    expect(crumbTexts(main)).toEqual(['Wisdom', 'architecture']);
+    expect(crumbTexts(main)).toEqual(['Wisdom', 'Architecture']);
     expect(crumbLinks(main)).toEqual(['/en/wisdom/']);
   });
 

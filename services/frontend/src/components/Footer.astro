@@ -1,0 +1,225 @@
+---
+/**
+ * El pie de todas las vistas: donde acaba el sendero.
+ *
+ * Arriba, la última cresta del valle en tinta (una forma, no una raya); dentro,
+ * el camino que llega de la izquierda y termina en el 道 escrito a pincel. El
+ * trazo se pinta cuando el pie entra en pantalla; sin JS o con «reducir
+ * movimiento» ya está pintado.
+ *
+ * El crédito sale del README del repositorio (Development Team, License): es un
+ * proyecto de clase de Front-end II en la UDIT, y así se dice.
+ */
+interface Props { lang: 'en' | 'es' }
+const { lang } = Astro.props;
+
+const otherLocale = lang === 'en' ? 'es' : 'en';
+const switchPath = '/' + otherLocale + Astro.url.pathname.replace(/^\/(en|es)/, '');
+// Quien entra desde el pie vuelve a la página donde estaba.
+const loginHref = `/${lang}/login?next=${encodeURIComponent(Astro.url.pathname)}`;
+
+const t = {
+  es: {
+    nav: 'Pie de página',
+    fin: 'Fin del sendero',
+    links: [
+      { href: '/es/', label: 'Inicio' },
+      { href: '/es/wisdom/', label: 'Sabiduría' },
+      { href: '/es/graph', label: 'Grafo' },
+      { href: '/es/graph/path', label: 'Sendero' },
+      { href: '/es/oracle', label: 'Oráculo' },
+      { href: '/es/docs/', label: 'Docs' },
+      { href: loginHref, label: 'Iniciar sesión' },
+    ],
+    idioma: 'Read in English',
+    credito: 'TTOD, El Tao del Desarrollo, es un proyecto de clase de Front-end II en la UDIT. Idea, corpus y dirección: Rubén Vega Balbás, PhD. Lo construyen los equipos 1 a 5 del curso.',
+    repo: 'Código en GitHub',
+    docs: 'Documentación del proyecto',
+    licencia: 'Código MIT · Citas y textos CC BY-NC-SA 4.0',
+    externo: '(se abre en GitHub)',
+  },
+  en: {
+    nav: 'Footer',
+    fin: 'End of the path',
+    links: [
+      { href: '/en/', label: 'Home' },
+      { href: '/en/wisdom/', label: 'Wisdom' },
+      { href: '/en/graph', label: 'Graph' },
+      { href: '/en/graph/path', label: 'Path' },
+      { href: '/en/oracle', label: 'Oracle' },
+      { href: '/en/docs/', label: 'Docs' },
+      { href: loginHref, label: 'Log in' },
+    ],
+    idioma: 'Leer en español',
+    credito: 'TTOD, The Tao of Development, is a class project for Front-end II at UDIT. Idea, corpus and direction: Rubén Vega Balbás, PhD. Built by teams 1 to 5 of the course.',
+    repo: 'Code on GitHub',
+    docs: 'Project documentation',
+    licencia: 'Code MIT · Quotes and texts CC BY-NC-SA 4.0',
+    externo: '(opens on GitHub)',
+  },
+}[lang];
+const docsHref = lang === 'es' ? 'https://ruvebal.github.io/ttod/es/' : 'https://ruvebal.github.io/ttod/';
+---
+<footer class="pie" data-pie>
+  <svg class="pie-cresta" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <path d="M0 120V78C62 68 118 40 176 42C230 44 260 72 316 70C386 67 412 18 484 14C548 10 580 48 644 52C702 56 736 30 794 32C860 34 886 72 952 72C1006 72 1038 38 1098 34C1168 29 1206 64 1274 64C1324 64 1370 52 1440 40V120Z" />
+  </svg>
+  <div class="pie-dentro">
+    <div class="pie-cierre">
+      <span class="pie-trazo">
+      <svg class="pie-sendero" viewBox="0 0 320 90" aria-hidden="true" focusable="false">
+          <defs>
+            <filter id="pie-pincel" x="-5%" y="-30%" width="110%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" />
+              <feDisplacementMap in="SourceGraphic" scale="2.4" />
+            </filter>
+          </defs>
+          <g filter="url(#pie-pincel)">
+            <path d="M4 66c26-2 40-20 66-22 30-2 34 26 66 24 34-2 38-40 74-42 28-2 40 18 62 22 18 3 32 2 44-2" />
+            <path class="pie-cerda" d="M6 70c26-2 40-19 64-21 30-2 36 27 66 25 34-2 40-41 74-43 26-2 40 20 62 24 18 3 32 1 44-3" />
+          </g>
+        </svg>
+      </span>
+      <span class="pie-dao" aria-hidden="true">道</span>
+      <p class="pie-fin">{t.fin}</p>
+    </div>
+
+    <nav class="pie-nav" aria-label={t.nav}>
+      <ul>
+        {t.links.map((l) => <li><a href={l.href}>{l.label}</a></li>)}
+      </ul>
+    </nav>
+
+    <a class="pie-idioma" href={switchPath} hreflang={otherLocale} lang={otherLocale}>{t.idioma}</a>
+
+    <div class="pie-credito">
+      <p>{t.credito}</p>
+      <p class="pie-externos">
+        <a href="https://github.com/ruvebal/ttod" rel="noopener">{t.repo}<span class="pie-oculto"> {t.externo}</span> <span aria-hidden="true">↗</span></a>
+        <a href={docsHref} rel="noopener">{t.docs} <span aria-hidden="true">↗</span></a>
+      </p>
+      <p class="pie-licencia">{t.licencia}</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  /* Ma Shan Zheng (OFL, texto en tinta/OFL-MaShanZheng.txt), recortada a los
+     pocos caracteres que usa el sitio: 13 KB. */
+  @font-face {
+    font-family: 'MaShanZheng';
+    src: url('/visual-system/tinta/MaShanZheng-pincel.woff2') format('woff2');
+    font-display: swap;
+  }
+  .pie {
+    --pie-ink: #17130d;
+    --pie-papel: rgb(var(--ttod-paper-rgb));
+    --pie-tenue: rgb(var(--ttod-paper-rgb) / .78);
+    --pie-sello: #d0644f;
+    position: relative;
+    margin-top: clamp(2rem, 5vw, 4rem);
+    color: var(--pie-papel);
+    font-family: var(--ttod-font-ui);
+  }
+  .pie-cresta {
+    display: block; width: 100%; height: clamp(44px, 7vw, 110px);
+    fill: var(--pie-ink);
+    /* El borde de la cresta se funde con lo de arriba como tinta aguada. */
+    margin-bottom: -1px;
+  }
+  .pie-dentro {
+    background: var(--pie-ink);
+    padding: clamp(1.5rem, 5vw, 3rem) 1rem max(2rem, env(safe-area-inset-bottom));
+    display: grid; gap: 2rem;
+  }
+  .pie-dentro > * { width: min(100%, 72rem); margin-inline: auto; }
+
+  .pie-cierre { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: .25rem; }
+  .pie-sendero { width: 100%; height: auto; max-width: 30rem; overflow: visible; }
+  .pie-sendero path {
+    fill: none; stroke: var(--pie-sello); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  /* El trazo se descubre con una cortina de tinta que se aparta (solo
+     transform, en el compositor): el filtro de pincel se pinta una vez y no
+     en cada fotograma, que en un móvil lento costaba un salto al hacer scroll. */
+  .pie-trazo { position: relative; display: block; overflow: hidden; max-width: 30rem; }
+  .pie-trazo::after {
+    content: ""; position: absolute; inset: -10% -1px -10% -3rem;
+    background: linear-gradient(90deg, rgb(23 19 13 / 0), var(--pie-ink) 3rem);
+    transform: translateX(101%);
+  }
+  .pie-sendero .pie-cerda { stroke-width: 1.1; opacity: .45; }
+  .pie-dao {
+    font-family: 'MaShanZheng', var(--ttod-font-titular);
+    font-size: clamp(4.5rem, 16vw, 7.5rem); line-height: .9; color: var(--pie-papel);
+  }
+  .pie-fin {
+    grid-column: 1 / -1; margin: .75rem 0 0;
+    font-size: var(--ttod-text-ui); letter-spacing: var(--ttod-tracking-ui); text-transform: uppercase; font-weight: 500;
+    color: var(--pie-tenue);
+  }
+  /* Con JS y movimiento: el trazo espera fuera de pantalla y se pinta al llegar. */
+  .pie[data-espera] .pie-trazo::after { transform: none; }
+  .pie[data-pintado] .pie-trazo::after { transition: transform 1.3s cubic-bezier(.45, .05, .2, 1); }
+
+  .pie-nav ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; column-gap: 1rem; }
+  .pie-nav a, .pie-idioma, .pie-externos a {
+    display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--pie-papel); text-decoration: none;
+  }
+  .pie-nav a { font-family: var(--ttod-font-titular); font-size: 1.375rem; font-weight: 300; }
+  .pie-nav a, .pie-externos a { background: linear-gradient(currentColor, currentColor) 0 calc(100% - .55rem) / 0 1px no-repeat; transition: background-size .35s cubic-bezier(.2, .7, .3, 1); }
+  .pie-nav a:hover, .pie-externos a:hover { background-size: 100% 1px; }
+
+  .pie-dentro > .pie-idioma {
+    justify-self: start; width: fit-content; margin-inline: 0;
+    padding: 0 1.15rem; border-radius: 999px; border: 1px solid rgb(var(--ttod-paper-rgb) / .45);
+    font-size: var(--ttod-text-ui); letter-spacing: .1em; text-transform: uppercase; font-weight: 500;
+    transition: background-color .25s ease, color .25s ease;
+  }
+  .pie-idioma:hover { background: var(--pie-papel); color: var(--pie-ink); }
+
+  .pie-credito { font-size: .9375rem; line-height: 1.65; color: var(--pie-tenue); max-width: 40rem; }
+  .pie-credito p { margin: 0 0 .5rem; }
+  .pie-externos { display: flex; flex-wrap: wrap; column-gap: 1.5rem; }
+  .pie-externos a { color: var(--pie-papel); }
+  .pie-licencia { font-size: .9375rem; }
+  .pie-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .pie a:focus-visible { outline: 2px solid var(--pie-papel); outline-offset: 3px; border-radius: 4px; }
+
+  @media (min-width: 52rem) {
+    .pie-dentro { grid-template-columns: 1.1fr 1fr; column-gap: 4rem; padding-inline: clamp(2rem, 6vw, 5rem); }
+    .pie-dentro > * { width: auto; margin-inline: 0; }
+    .pie-cierre { grid-column: 1 / -1; grid-template-columns: minmax(0, 34rem) auto; justify-content: start; }
+    .pie-trazo { max-width: none; }
+    .pie-dao { margin-inline-start: -.2em; }
+    .pie-nav ul { grid-template-columns: repeat(3, auto); justify-content: start; column-gap: 2.5rem; }
+    .pie-dentro > .pie-idioma { grid-column: 2; grid-row: 2; justify-self: end; align-self: start; }
+    .pie-credito { grid-column: 1 / -1; display: grid; grid-template-columns: 1.1fr 1fr; column-gap: 4rem; max-width: none; }
+    .pie-credito > p:first-child { grid-row: span 2; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pie-nav a, .pie-externos a, .pie-idioma { transition: none; }
+  }
+</style>
+
+<script>
+  // El trazo se pinta una sola vez, cuando el pie asoma. Sin movimiento pedido
+  // o sin IntersectionObserver, se queda pintado desde el principio.
+  const pie = document.querySelector<HTMLElement>('[data-pie]');
+  if (pie && 'IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const r = pie.getBoundingClientRect();
+    if (r.top > innerHeight) {
+      pie.dataset.espera = '';
+      const io = new IntersectionObserver((entradas) => {
+        if (!entradas.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        pie.dataset.pintado = '';
+        // Dos fotogramas: el primero fija el estado de partida, el segundo lo suelta.
+        requestAnimationFrame(() => requestAnimationFrame(() => pie.removeAttribute('data-espera')));
+      }, { threshold: 0.25 });
+      io.observe(pie);
+    }
+  }
+</script>

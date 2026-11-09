@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getSessionUser, loginWithBackend, requireRole, requireUser } from './auth.server';
+import { getSessionUser, loginWithBackend, requireRole, requireUser, safeNextPath } from './auth.server';
 
 const reviewer = { id: 'usr-001', email: 'admin@ttod.local', roles: ['reviewer', 'instructor'] };
 const student = { id: 'usr-002', email: 'student@ttod.local', roles: ['student'] };
@@ -24,7 +24,7 @@ describe('SSR session guard', () => {
     expect(result).toBeInstanceOf(Response);
     const response = result as Response;
     expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('/es/login');
+    expect(response.headers.get('location')).toBe('/es/login?next=%2Fes%2Faccount');
     await expect(response.text()).resolves.toBe('');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -46,7 +46,7 @@ describe('SSR session guard', () => {
     const result = await requireUser(accountRequest('en', 'expired-session'));
 
     expect((result as Response).status).toBe(302);
-    expect((result as Response).headers.get('location')).toBe('/en/login');
+    expect((result as Response).headers.get('location')).toBe('/en/login?next=%2Fen%2Faccount');
   });
 
   it('rejects a backend payload that does not match the shared AuthUser contract', async () => {
@@ -91,7 +91,7 @@ describe('SSR role guard', () => {
     const result = await requireRole(accountRequest('es'), 'reviewer');
 
     expect((result as Response).status).toBe(302);
-    expect((result as Response).headers.get('location')).toBe('/es/login');
+    expect((result as Response).headers.get('location')).toBe('/es/login?next=%2Fes%2Faccount');
   });
 });
 
@@ -141,5 +141,14 @@ describe('login against the backend', () => {
     await expect(loginWithBackend('admin@ttod.local', 'a-password')).resolves.toEqual({
       ok: false, reason: 'service'
     });
+  });
+});
+
+describe('where login returns to', () => {
+  it('keeps a path of this site and refuses anything that leaves it', () => {
+    expect(safeNextPath('/es/wisdom/wis-034?x=1', 'es')).toBe('/es/wisdom/wis-034?x=1');
+    for (const bad of ['//evil.com', '/\\evil.com', 'https://evil.com', '/es/login', '/en/login?next=/x', null, 42]) {
+      expect(safeNextPath(bad, 'es')).toBe('/es/account');
+    }
   });
 });

@@ -1,0 +1,1437 @@
+---
+/**
+ * Lo que viene después del hero («la página sigue en el mismo mundo, ni lista
+ * beige plana ni puertas repetidas»).
+ *
+ * Esqueleto: los tramos 7, 8 y 10 de Atlas Motion (atlasmotion.com) — tesis (pintura a un
+ * lado, texto largo al otro), galería de detalle, y cierre con franja de paisaje
+ * antes del pie. Su estructura; nunca su código, sus textos ni sus imágenes.
+ *
+ * El mundo del hero continúa con la misma pintura (las capas del valle 3) y la
+ * misma paleta de hora dorada: los montes lejanos abren la tesis y el acantilado
+ * cierra la página. El texto nunca cae sobre la pintura cargada: va sobre papel
+ * o sobre la niebla clara del fondo.
+ */
+
+interface Seccion { slug: string; total: number }
+interface Muestra { id: string; text: string }
+interface Props {
+  lang: 'en' | 'es';
+  secciones: Seccion[];
+  // Una cita de verdad por sección, la primera que el corpus guarda en ella.
+  // No es decoración: es lo que llena la mitad de abajo de cada parada, igual
+  // que la ficha del Qingming lleva el texto del episodio y no un pie de foto.
+  muestras: Record<string, Muestra>;
+  totalCitas: number;
+  totalNiveles: number;
+}
+const { lang, secciones, muestras, totalCitas, totalNiveles } = Astro.props as Props;
+
+import '../styles/movimiento.css';
+
+const ART = '/visual-system/valle';
+
+// --- El rollo -----------------------------------------------------------
+// Las imágenes no se presentaban bien. Lo que
+// había aquí eran **seis recortes de la misma pintura del valle**, uno por
+// sección, con el nombre escrito encima (imágenes repetidas).
+//
+// Concepto: «El rollo».
+// El corpus es **un solo rollo de mano** que se desenrolla; las secciones no
+// son N imágenes, son N paradas del mismo camino, y lo que pesa una sección es
+// **cuánto rollo ocupa**. Una imagen, cero repeticiones por construcción.
+//
+// La pintura es el tramo pintado del rollo real de Dong Qichang (Cleveland
+// 1959.46, CC0) que ya es la obra base del sitio, recortado una sola vez a
+// 11 340 × 4 885 px nativos (ver `public/visual-system/CREDITOS.md`).
+const ROLLO_RATIO = 11340 / 4885;
+
+// El reparto del rollo, que es el dato. Cada sección tiene un **tramo mínimo**
+// —media parada, lo que se recorre de un pulgar— y lo que pasa de ahí lo pone
+// su número de citas. Sin el mínimo, las cuatro secciones de una sola cita se
+// cruzarían en 13 px y no habría manera de leer su nombre; con él, la sección
+// que sostiene el corpus sigue midiendo cinco veces la más pequeña.
+const MINIMO = 0.5;
+const sumaCitas = secciones.reduce((t, s) => t + s.total, 0) || 1;
+const reparto = secciones.length * (1 - MINIMO);
+// Las paradas van de la que más pesa a la que menos, que es también cómo se
+// vacía la pintura: el rollo se abre por la derecha con el pinar denso del
+// primer término y acaba a la izquierda en colinas lejanas sobre agua vacía.
+let acumulado = 0;
+const paradas = secciones.map((s, i) => {
+  const tramo = (MINIMO + (s.total / sumaCitas) * reparto) / secciones.length;
+  const inicio = acumulado;
+  acumulado += tramo;
+  return { ...s, i, tramo, inicio, centro: inicio + tramo / 2 };
+});
+// El ritmo lo pone Stripe Press, medido a 390 px: 318–334 px de scroll por
+// elemento. Trece paradas × 320 px = 4 160 px
+// de rollo, cinco pantallas de teléfono.
+const PARADA_PX = 320;
+
+// El corpus nombra sus secciones con un identificador en inglés («code-craft»).
+// Ese identificador se sigue viendo, porque es el dato; encima va el nombre en
+// el idioma de la página. Una sección nueva que no esté aquí sale con su
+// identificador tal cual: antes sin traducir que inventada.
+const NOMBRES: Record<'en' | 'es', Record<string, string>> = {
+  en: {
+    images: 'Images', architecture: 'Architecture', 'code-craft': 'Code craft',
+    'qa-tooling': 'QA & tooling', wisdom: 'Wisdom', 'remote-repo': 'Remote repo',
+    devops: 'DevOps', debugging: 'Debugging', ux: 'UX', operations: 'Operations',
+    javascript: 'JavaScript', networking: 'Networking', accessibility: 'Accessibility',
+  },
+  es: {
+    images: 'Imágenes', architecture: 'Arquitectura', 'code-craft': 'Oficio del código',
+    'qa-tooling': 'Calidad y herramientas', wisdom: 'Sabiduría', 'remote-repo': 'Repositorio remoto',
+    devops: 'DevOps', debugging: 'Depuración', ux: 'UX', operations: 'Operaciones',
+    javascript: 'JavaScript', networking: 'Redes', accessibility: 'Accesibilidad',
+  },
+};
+const nombre = (slug: string) => NOMBRES[lang][slug] ?? slug;
+
+const copia = {
+  en: {
+    titularTesis: 'A corpus you can audit',
+    parrafo1: `TTOD gathers ${totalCitas} quotes about the craft of building software. Each one keeps its identifier, its section, its level and its licence.`,
+    parrafo2: 'Nothing here is typed by hand into the page: every quote and every number below is read from the corpus the course governs.',
+    cifras: [
+      { n: totalCitas, t: 'quotes in English' },
+      { n: secciones.length, t: 'sections' },
+      { n: totalNiveles, t: 'levels of depth' },
+    ],
+    titularMapa: 'The corpus, as one scroll',
+    pieMapa: `A handscroll is not hung on a wall: it is opened with both hands, from right to left, one stretch at a time. The ${secciones.length} sections are the stops along that road, and each one takes up as much scroll as it holds quotes. Each red seal on the painting marks a section; beneath it, its colophon: the first quote the section keeps.`,
+    citas: (n: number) => (n === 1 ? '1 quote' : `${n} quotes`),
+    paradaDe: 'of',
+    verCitas: (n: number) => (n === 1 ? 'Read this quote' : `Read all ${n}`),
+    anterior: 'Previous stop',
+    siguiente: 'Next stop',
+    altRollo:
+      'Handscroll in ink on paper: river, rocks and pine woods between receding mountains, with the collector’s red seals along the top.',
+    credito:
+      'Dong Qichang (1555–1636), “River and Mountains on a Clear Autumn Day”, ca. 1624–27. Ink on paper. The Cleveland Museum of Art, 1959.46 · CC0.',
+    finRollo: `The scroll closes on ${totalCitas} quotes. Every one of them keeps its identifier and its source.`,
+    finEnlace: 'Walk the whole corpus',
+    titularCierre: 'Is a quote missing?',
+    parrafoCierre:
+      'The corpus grows with what the class proposes: every proposal is reviewed before it enters, and it carries its source from the first day.',
+    cta: 'Propose a quote',
+    ctaFicha: 'Read the governance docs',
+  },
+  es: {
+    titularTesis: 'Un corpus que se puede auditar',
+    parrafo1: `TTOD reúne ${totalCitas} citas sobre el oficio de construir software. Cada una guarda su identificador, su sección, su nivel y su licencia.`,
+    parrafo2: 'Aquí no hay nada escrito a mano en la página: cada cita y cada número de abajo se leen del corpus que gobierna el curso.',
+    cifras: [
+      { n: totalCitas, t: 'citas en español' },
+      { n: secciones.length, t: 'secciones' },
+      { n: totalNiveles, t: 'niveles de profundidad' },
+    ],
+    titularMapa: 'El corpus, en un rollo',
+    pieMapa: `Un rollo de mano no se cuelga: se abre con las dos manos, de derecha a izquierda, un tramo cada vez. Las ${secciones.length} secciones son las paradas de ese camino, y cada una ocupa tanto rollo como citas guarda. Cada sello rojo sobre la pintura marca una sección; debajo, su colofón: la primera cita que guarda.`,
+    citas: (n: number) => (n === 1 ? '1 cita' : `${n} citas`),
+    paradaDe: 'de',
+    verCitas: (n: number) => (n === 1 ? 'Leer esta cita' : `Leer las ${n}`),
+    anterior: 'Parada anterior',
+    siguiente: 'Parada siguiente',
+    altRollo:
+      'Rollo de mano en tinta sobre papel: río, roquedos y pinares entre montañas que se alejan, con los sellos rojos de los coleccionistas en la parte alta.',
+    credito:
+      'Dong Qichang (1555–1636), «Río y montañas en un día claro de otoño», ca. 1624–27. Tinta sobre papel. The Cleveland Museum of Art, 1959.46 · CC0.',
+    finRollo: `El rollo se cierra con ${totalCitas} citas. Cada una guarda su identificador y su procedencia.`,
+    finEnlace: 'Recorrer el corpus entero',
+    titularCierre: '¿Falta una cita?',
+    parrafoCierre:
+      'El corpus crece con lo que propone la clase: cada propuesta pasa por revisión antes de entrar, y lleva su procedencia desde el primer día.',
+    cta: 'Proponer una cita',
+    ctaFicha: 'Leer los docs de gobierno',
+  },
+}[lang];
+
+// Las tres bandas del valle no son la capa `izquierda` del hero repetida —una
+// capa del hero es un recorte con alfa y, usada como banda, enseña su contorno:
+// a 390 el canto del acantilado cruzaba la pantalla en diagonal—. Son tres
+// trozos distintos de la pintura entera, sin alfa y graduados a su distancia.
+const banda = (nombre: string, anchos: number[]) => ({
+  src: `${ART}/valle-${nombre}-${anchos[1]}.webp`,
+  srcset: anchos.map((a) => `${ART}/valle-${nombre}-${a}.webp ${a}w`).join(', '),
+});
+const lejos = banda('tesis', [900, 1280, 1900]);
+const risco = banda('cierre', [1000, 1600, 2136]);
+
+// La única imagen del bloque. Cuatro anchos del mismo archivo; el navegador
+// elige uno. A 390 px con el rollo dibujado a 820 px de alto son 1 904 px de
+// css y el teléfono de densidad 2 coge el de 4 000 (584 kB) — menos de lo que
+// pesaban juntos los seis recortes que se van.
+const ROLLO_ANCHOS = [2560, 3200, 4000, 5600];
+const fuente = (anchos: number[]) =>
+  anchos.map((a) => `/visual-system/rollo/rollo-${a}.webp ${a}w`).join(', ');
+const rollo = {
+  src: '/visual-system/rollo/rollo-4000.webp',
+  srcset: fuente(ROLLO_ANCHOS),
+  movil: fuente(ROLLO_ANCHOS.filter((a) => a <= 4000)),
+};
+const dos = (n: number) => String(n).padStart(2, '0');
+---
+
+<section class="sigue" data-sigue aria-labelledby="sigue-tesis">
+  <!-- 7 · Tesis: la pintura a un lado, el texto largo al otro -->
+  <div class="tesis">
+    <figure class="tesis__lejos" aria-hidden="true">
+      <img
+        class="tesis__pintura"
+        data-lejos
+        src={lejos.src}
+        srcset={lejos.srcset}
+        sizes="(max-width: 56rem) 215vw, 105vw"
+        width="1900"
+        height="930"
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
+    </figure>
+    <div class="tesis__texto">
+      <span class="nube-ruyi nube-ruyi--tesis" data-nube="11" aria-hidden="true"></span>
+      <h2 class="titular" id="sigue-tesis">{copia.titularTesis}</h2>
+      <p class="parrafo">{copia.parrafo1}</p>
+      <p class="parrafo">{copia.parrafo2}</p>
+      <dl class="cifras">
+        {copia.cifras.map((c) => (
+          <div class="cifra">
+            <dt class="cifra__n">{c.n}</dt>
+            <dd class="cifra__t">{c.t}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </div>
+
+  <!-- 8 · El rollo. Antes aquí había seis recortes de la misma pintura, uno por
+       sección, con el nombre escrito encima: eso es lo que se descartó, por
+       repetitivo. Ahora hay **una sola imagen** —el tramo pintado del rollo de
+       Dong Qichang— y el bloque entero es esa imagen desenrollándose: las
+       secciones no son N fotos, son N paradas del mismo camino.
+
+       La estructura es la del interactivo del Field Museum sobre el rollo
+       Qingming, medida a 390 px: una pintura
+       continua en la mitad de arriba, las paradas marcadas **dentro** del
+       dibujo, un contador «n de N» con dos flechas, y la ficha ocupando la otra
+       mitad de la pantalla en vez de taparla. Lo que no se roba: su pan libre
+       con el dedo, que en un teléfono se pelea con el scroll. Aquí sólo manda
+       el scroll vertical; el rollo avanza porque la página baja. -->
+  <div
+    class="rollo"
+    data-rollo
+    style={`--paradas:${paradas.length};--parada:${PARADA_PX}px;--rollo-ratio:${ROLLO_RATIO.toFixed(4)};--inicio:${(1 - paradas[0].centro).toFixed(5)}`}
+  >
+    <div class="rollo__portada">
+      <h2 class="titular titular--mapa" id="sigue-rollo">{copia.titularMapa}</h2>
+      <p class="rollo__gramatica">{copia.pieMapa}</p>
+    </div>
+
+    <!-- El alto de esta caja es el recorrido: 13 paradas × 320 px, más la
+         pantalla que se queda pegada. Dentro no hay scroll secuestrado — es
+         `position: sticky`, el mismo truco medido en Stripe Press, donde el
+         lienzo nunca se mueve y lo que avanza es la escena de dentro. -->
+    <div class="rollo__escena" data-escena>
+      <div class="rollo__ventana" data-ventana>
+        <!-- El rollo es un objeto sobre el valle: pintura y colofón en el mismo
+             papel, con los dos rollos de las varillas en los cantos de la
+             pintura (lo leído se enrolla a la derecha, lo que queda, a la
+             izquierda). La ficha ya no es una banda verde: es el papel del
+             rollo que sigue a la pintura, donde los lectores escribían. -->
+        <div class="rollo__papel">
+        <div class="rollo__banda">
+          <div class="rollo__lienzo" data-lienzo>
+            {/* Dos fuentes para un mismo archivo. A 390 px con densidad 3 el
+                navegador pedía el de 5 600 (1 MB) para dibujar 1 904 px de
+                css: más de lo que pesaban juntos los seis recortes que se van.
+                En el teléfono el techo es el de 4 000 (584 kB); el grande se
+                reserva para la pantalla ancha, donde el rollo se dibuja a
+                2 900 px y sí hace falta. */}
+            <picture>
+              <source media="(min-width: 48rem)" srcset={rollo.srcset} sizes="2900px" />
+              <img
+                class="rollo__pintura"
+                src={rollo.src}
+                srcset={rollo.movil}
+                sizes="1904px"
+                width="4000"
+                height="1723"
+                alt={copia.altRollo}
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
+          </div>
+          <!-- Las secciones son sellos de coleccionista estampados en el sitio
+               exacto del rollo que les toca: un cuadrado de bermellón con su
+               número, el mismo que lleva estampado su colofón debajo. Así el
+               punto rojo se explica solo: es la sección que estás leyendo. -->
+          <ol class="rollo__sellos" data-sellos aria-hidden="true">
+            {paradas.map((p) => (
+              <li class="sello" data-sello style={`--centro:${p.centro.toFixed(5)}`}>{p.i + 1}</li>
+            ))}
+          </ol>
+        </div>
+
+        <div class="rollo__ficha">
+          <div class="rollo__indice">
+            <p class="rollo__contador" data-contador aria-live="polite">
+              <span class="rollo__contador-n" data-contador-n>{dos(1)}</span> {copia.paradaDe} {dos(paradas.length)}
+            </p>
+            <button class="rollo__flecha" type="button" data-ir="-1" aria-label={copia.anterior}>‹</button>
+            <button class="rollo__flecha" type="button" data-ir="1" aria-label={copia.siguiente}>›</button>
+          </div>
+
+          <!-- Una sola lista para los dos estados. Con JavaScript es el colofón
+               de la parada en la que estás (las demás siguen en el documento y
+               en el orden de tabulación: al enfocar una, se enseña y el rollo
+               salta a ella). Sin JavaScript es el índice escrito de las trece
+               secciones, debajo de la pintura. No se pierde información: se
+               pierde el avance. -->
+          <ol class="rollo__paradas" data-paradas>
+            {paradas.map((p) => (
+              <li
+                class="parada"
+                data-parada
+                data-i={p.i}
+                data-centro={p.centro.toFixed(5)}
+                style={`--peso:${(p.total / Math.max(1, paradas[0].total)).toFixed(3)}`}
+              >
+                <span class="parada__n" aria-hidden="true">{dos(p.i + 1)}</span>
+                <div class="parada__cabeza">
+                  <span class="parada__sello" aria-hidden="true">{p.i + 1}</span>
+                  <a class="parada__enlace" href={`/${lang}/wisdom/sections/${p.slug}/`}>
+                    <span class="parada__nombre">{nombre(p.slug)}</span>
+                    <span class="parada__dato">{copia.citas(p.total)}</span>
+                  </a>
+                  <!-- El tramo que esta sección ocupa del rollo, dibujado: es el
+                       mismo número que mueve el scroll, no un adorno. -->
+                  <span class="parada__tramo" aria-hidden="true" style={`--tramo:${(p.tramo * 100).toFixed(3)}%`} />
+                </div>
+                {/* El colofón: lo que la sección dice, no una descripción
+                    escrita para la ocasión. La primera cita que el corpus
+                    guarda en ella, con su identificador. */}
+                {muestras[p.slug] && (
+                  <blockquote class="parada__cita">
+                    <p>{muestras[p.slug].text}</p>
+                    <footer>
+                      <span class="parada__id">{muestras[p.slug].id}</span>
+                      <a class="parada__ver" href={`/${lang}/wisdom/sections/${p.slug}/`}>{copia.verCitas(p.total)}</a>
+                    </footer>
+                  </blockquote>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <p class="rollo__credito">{copia.credito}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rollo__cierre">
+      <p class="rollo__fin">{copia.finRollo}</p>
+      <a class="enlace" href={`/${lang}/wisdom/`}>{copia.finEnlace}</a>
+    </div>
+  </div>
+  <script is:inline>
+    // Antes de pintar: con JavaScript la ficha es una parada cada vez; sin él,
+    // el índice escrito de las trece. Va aquí, pegado al bloque, para que no
+    // haya un fotograma con las trece apiladas.
+    //
+    // Con «reducir movimiento» el bloque se queda en esa forma escrita a
+    // propósito. Antes seguía siendo el carrusel —una parada cada vez— y sólo
+    // se le quitaba el barrido, así que doce de las trece secciones estaban en
+    // `opacity: 0` esperando un scroll: con movimiento reducido había texto que
+    // no se veía nunca. Quien pide menos movimiento recibe las trece paradas
+    // escritas y la pintura quieta, no un carrusel sin transición.
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelector('[data-rollo]')?.setAttribute('data-vivo', '');
+    }
+  </script>
+
+  <!-- 10 · Cierre: el acantilado sube y la página entra en el pie -->
+  <div class="cierre">
+    <div class="cierre__texto">
+      <span class="nube-ruyi nube-ruyi--cierre" data-nube="37" aria-hidden="true"></span>
+      <h2 class="titular titular--cierre">{copia.titularCierre}</h2>
+      <p class="parrafo">{copia.parrafoCierre}</p>
+      <p class="cierre__acciones">
+        <a class="boton" href={`/${lang}/wisdom/propose/`}>{copia.cta}</a>
+        <a class="enlace" href={lang === 'es' ? '/project-docs/es/' : '/project-docs/'}>{copia.ctaFicha}</a>
+      </p>
+    </div>
+    <figure class="cierre__risco" aria-hidden="true">
+      <img
+        class="cierre__pintura"
+        data-risco
+        src={risco.src}
+        srcset={risco.srcset}
+        sizes="(max-width: 32rem) 185vw, (max-width: 56rem) 135vw, 115vw"
+        width="2136"
+        height="1150"
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
+    </figure>
+  </div>
+</section>
+
+<style>
+  /* El papel de la página, con la temperatura de la hora dorada del hero: ni
+     beige plano ni blanco. El degradado recorre los tres tramos, así que no hay
+     ninguna línea donde un tramo acabe y empiece el siguiente. */
+  /* La portada no es columna de lectura: la pintura llega a los dos cantos.
+     `tokens.css` le pone a todo `<main>` 48rem y un relleno lateral. */
+  :global(main.ttod-portada) {
+    max-width: none;
+    padding: 0;
+  }
+  /* El valle no acaba en una raya: la cresta del pie sube y se monta sobre
+     las flores del último tramo, sin franja de papel entre los dos (nada de
+     cortes rectos). El alto es el de `.pie-cresta` (Footer.astro). */
+  :global(body:has(main.ttod-portada) .pie) {
+    margin-top: calc(-1 * clamp(44px, 7vw, 110px));
+    z-index: 2;
+  }
+  /* El pie de la portada no vuelve al papel claro: la página ha bajado al fondo
+     del valle y el pie es la última pantalla de ese fondo. Lo pinta el layout,
+     con `body[data-portada]`, porque desde aquí una regla global pierde la
+     carrera de especificidad contra la hoja del propio `Page.astro`. */
+
+  /* **La tarde baja contigo.** Medidas las 22 pantallas: mediana 223 a
+     390 contra las 156 de la pintura de referencia, y el p5 por encima de 100 en
+     10 pantallas. No había negros, y sin negros no hay profundidad.
+
+     La causa no era la pintura —`original.png` tiene mediana 132 y p5 24, el
+     registro exacto de la referencia—: era que todo, pintura y papel, tendía al
+     mismo crema de arriba abajo. El aire era el techo del valor.
+
+     Así que el aire tiene hora. Arriba, donde la página se encuentra con la
+     hierba del hero, sigue siendo la hora dorada; según se baja, se baja de
+     verdad: la luz se va de la garganta y el papel desciende hasta el verde de
+     sombra medido en la referencia (rgb 34,52,41). Las pinturas de este tramo
+     hacen el mismo viaje sobre el píxel, plano a plano, en
+     `capas-hero/tarde.py`. Los colores de aquí son `aire(hora)` de ese guion a
+     la altura de cada tramo: el papel y la pintura no pueden desacoplarse.
+
+     Y lo que se lee no cae nunca en la media luz: arriba se lee tinta sobre
+     papel claro y abajo papel claro sobre tinta. La franja intermedia —donde
+     ninguno de los dos llega a 4,5:1— es justo donde vive la cordillera, que no
+     lleva texto corrido. */
+  .sigue {
+    position: relative;
+    background:
+      linear-gradient(to bottom,
+        rgb(104, 110, 90) 0%,
+        rgb(100, 107, 89) 12%,
+        rgb(96, 104, 88) 28%,
+        rgb(90, 99, 85) 46%,
+        rgb(82, 92, 79) 64%,
+        rgb(74, 86, 73) 82%,
+        rgb(65, 80, 67) 100%);
+    overflow-x: clip;
+    isolation: isolate;
+  }
+  /* El verde no es una tinta plana: es papel viejo pintado con aguada, como
+     el hero. Encima del degradado van, quietos (se pintan una vez, no en cada
+     scroll): manchas de aguada desigual más hondas y más cálidas, una luz de
+     tarde que entra por arriba, los cantos que se pierden en sombra y el grano
+     del papel. Todo por debajo del texto (z-index −1 dentro de `.sigue`). */
+  .sigue::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .13 0 0 0 0 .09 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23g)'/%3E%3C/svg%3E"),
+      radial-gradient(80% 26rem at 18% 4%, rgb(222 192 136 / .34), transparent 70%),
+      radial-gradient(40% 18rem at 70% 14%, rgb(196 170 120 / .22), transparent 70%),
+      radial-gradient(55% 30rem at 92% 26%, rgb(30 38 28 / .42), transparent 72%),
+      radial-gradient(60% 26rem at 6% 44%, rgb(132 112 74 / .3), transparent 70%),
+      radial-gradient(35% 16rem at 46% 52%, rgb(170 146 98 / .18), transparent 70%),
+      radial-gradient(50% 34rem at 84% 64%, rgb(24 30 22 / .4), transparent 72%),
+      radial-gradient(65% 24rem at 26% 82%, rgb(160 136 90 / .24), transparent 70%),
+      linear-gradient(180deg, rgb(120 96 56 / .12), rgb(120 96 56 / .04) 40%, rgb(40 30 18 / .12)),
+      linear-gradient(90deg, rgb(20 24 18 / .4), transparent 16%, transparent 84%, rgb(20 24 18 / .4));
+  }
+
+  /* Sin rótulo diminuto encima de cada titular. `impeccable` lo marca como
+     anti-patrón —«el titular se sostiene solo»— y aquí además eran tres
+     renglones en versales que no decían nada que el titular no dijera ya. */
+  .titular {
+    margin: 0 0 clamp(1.1rem, 2.6vh, 2rem);
+    font-family: var(--ttod-font-body);
+    /* La cursiva del folio del oráculo, la pieza que marca el estilo. */
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(2rem, 6.4vw, 3.6rem);
+    line-height: 1.06;
+    letter-spacing: -.015em;
+    color: #f7f3e7;
+  }
+  :global(.sigue .parrafo) {
+    margin: 0 0 clamp(1rem, 2vh, 1.5rem);
+    max-width: 38ch;
+    font-size: clamp(1.0625rem, 1.15vw, 1.3rem);
+    line-height: 1.6;
+    color: #f8f5ec;
+  }
+
+  /* --- 7 · Tesis ------------------------------------------------------- */
+  /* Aire de papel entre la hierba del hero y la banda: sin él las dos pinturas
+     se encuentran en una línea recta y se ve la costura. */
+  .tesis { display: grid; padding-block-start: clamp(2.5rem, 9vh, 7rem); }
+  .tesis__lejos {
+    position: relative;
+    margin: 0;
+    height: clamp(13rem, 32vh, 22rem);
+    overflow: clip;
+    /* La máscara va en el marco, no en la imagen: la imagen la mueve el scroll
+       (escala y desplaza), así que su degradado se salía del encuadre y el
+       canto volvía a verse recto. */
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 30%, #000 64%, rgba(0,0,0,0) 99%);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 30%, #000 64%, rgba(0,0,0,0) 99%);
+  }
+  /* El canto de la banda no se tapa con un color (nunca acierta con el del
+     papel debajo: deja dos rayas), se disuelve con máscara sobre el papel que
+     ya hay. Es una banda de ambiente, no una capa del hero. */
+  .tesis__pintura {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    /* La masa de montes, no el cielo: a 390 el cielo se comía la banda entera. */
+    object-position: 14% 38%;
+    will-change: transform;
+  }
+  .tesis__texto {
+    padding: clamp(2.2rem, 6vh, 4.5rem) clamp(1.1rem, 5vw, 5.5rem) clamp(2rem, 5vh, 4rem);
+  }
+
+  .cifras {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+    gap: clamp(1rem, 3vw, 2.5rem);
+    margin: clamp(1.6rem, 4vh, 2.8rem) 0 0;
+    padding-block-start: clamp(1.2rem, 3vh, 2rem);
+    border-block-start: 1px solid rgba(247, 243, 231, .26);
+  }
+  .cifra { margin: 0; }
+  .cifra__n {
+    font-family: var(--ttod-font-body);
+    font-size: clamp(2rem, 4.6vw, 3rem);
+    line-height: 1;
+    color: #f7f3e7;
+  }
+  .cifra__t {
+    margin: var(--ttod-space-2, .5rem) 0 0;
+    font-family: var(--ttod-font-ui);
+    font-size: .9375rem;
+    line-height: 1.4;
+    /* Misma razón que en la ficha del rollo: sobre este verde un apagado se
+       queda en 4,49:1 («quotes in English» en la versión inglesa). El pie de la
+       cifra es la misma tinta que la cifra y se distingue por tamaño. */
+    color: #f7f3e7;
+  }
+
+  /* --- 8 · El rollo ----------------------------------------------------- */
+  /* Un rollo de mano es **un objeto**: tiene canto arriba y canto abajo, y se
+     ve entero de una vez sólo el tramo que cabe entre las dos manos. Así que
+     aquí la pintura no se funde con la página —no lleva máscara, no se va en
+     bruma—: se apoya encima, con su montaje. Es el cambio de registro del
+     bloque: el valle del hero es el mundo; el rollo es el documento. */
+  .rollo {
+    position: relative;
+    /* El margen del texto del bloque, en un sitio: la ficha lo usa como padding
+       y, cuando el rollo avanza, se lo pasa a cada parada. */
+    --ficha-margen: clamp(1.1rem, 5vw, 5.5rem);
+  }
+  .rollo__portada {
+    padding: clamp(2.5rem, 7vh, 6rem) clamp(1.1rem, 5vw, 5.5rem) clamp(1.4rem, 3.5vh, 2.4rem);
+  }
+  .titular--mapa { margin-bottom: clamp(.9rem, 2vh, 1.4rem); }
+  .rollo__gramatica {
+    margin: 0;
+    max-width: 44ch;
+    font-family: var(--ttod-font-body);
+    font-size: clamp(1.0625rem, 1.15vw, 1.3rem);
+    line-height: 1.6;
+    color: #f8f5ec;
+  }
+
+  /* El recorrido del rollo, en píxeles de scroll: trece paradas de 320 px (el
+     ritmo medido en Stripe Press) más la pantalla que se queda pegada. El resto
+     de la escena no mide nada: lo que avanza es la pintura dentro de la
+     ventana, como el lienzo de Stripe, que está siempre en y = 0. */
+  .rollo__escena { height: calc(var(--paradas) * var(--parada) + 100svh); }
+  .rollo__ventana {
+    position: sticky;
+    inset-block-start: 0;
+    display: grid;
+    /* Una columna del ancho de la ventana, dicha a mano. Sin esto la columna
+       implícita es `auto`, que mide **el contenido más ancho**: con las trece
+       fichas en fila la columna se iba a 507 px en un teléfono de 390 y el
+       `overflow: clip` de aquí cortaba el final de cada línea a media palabra. */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: 100svh;
+    /* La barra flotante del sitio pasa por encima de esta franja de arriba: el
+       rollo empieza por debajo, nunca detrás de la navegación. */
+    padding-block: clamp(4.5rem, 10svh, 6.5rem) clamp(.7rem, 1.8svh, 1.2rem);
+    overflow: clip;
+  }
+  /* El papel del rollo: la pintura y, a continuación, el colofón, en el mismo
+     papel que la obra (su tono está medido sobre el rollo de Cleveland). Antes
+     la ficha era una banda verde plana que no tenía nada que ver con la
+     pintura; ahora es el tramo de papel donde se escribe después de pintar. */
+  .rollo__papel {
+    --papel: #ece3cc;
+    --tinta: #211c15;
+    /* 6,0:1 sobre el papel: lo secundario se lee, sólo pesa menos. */
+    --tinta-suave: #5b4f3c;
+    --bermellon: #9a3324;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    /* La banda es la que cede: la ficha y el crédito piden lo que necesitan y
+       el rollo se queda con el resto. Al revés —banda fija y ficha flexible—
+       una cita larga se cortaba por abajo en el teléfono. */
+    grid-template-rows: minmax(8rem, 1fr) auto auto;
+    min-height: 0;
+    color: var(--tinta);
+    background:
+      /* La fibra del papel: dos tramas finas, no una imagen. */
+      repeating-linear-gradient(0deg, rgb(33 28 21 / .018) 0 1px, transparent 1px 4px),
+      var(--papel);
+    box-shadow: 0 24px 50px -28px rgb(0 0 0 / .65);
+    overflow: clip;
+  }
+
+  /* La ventana por la que se ve el rollo. A 390 px ocupa la mitad de arriba,
+     que es el reparto medido en el Qingming del Field Museum (0–422 la pintura,
+     422–844 la ficha): la ficha **le quita sitio** a la pintura, nunca la tapa. */
+  .rollo__banda {
+    position: relative;
+    /* El rollo dibujado a 820 px de alto son 1 904 px de ancho; por la ventana
+       de 390 pasan 1 514 px de recorrido, que es lo que dura el bloque. */
+    --rollo-alto: 820px;
+    --rollo-ancho: calc(var(--rollo-alto) * var(--rollo-ratio));
+    overflow: clip;
+    /* El canto del montaje: una línea de tinta arriba y abajo. Sin ella la
+       pintura flota y vuelve a parecer una foto de fondo. */
+    border-block: 1px solid rgba(24, 20, 14, .55);
+    background: #e8dfc7;
+  }
+  /* Las dos varillas: a la izquierda, lo que falta por abrir; a la derecha, lo
+     ya leído, enrollado. Un cilindro de papel con su sombra a cada lado, por
+     encima de la pintura: es lo que hace que esto se lea como un rollo que se
+     abre entre las manos y no como una foto ancha. */
+  .rollo__banda::before,
+  .rollo__banda::after {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    inset-block: -1px;
+    width: clamp(10px, 2.4vw, 22px);
+    pointer-events: none;
+    background: linear-gradient(90deg, #b9ab8b, #f3ecda 38%, #ddd1b4 62%, #9c8e6f);
+    box-shadow: 0 0 14px 2px rgb(27 23 16 / .35);
+  }
+  .rollo__banda::before { inset-inline-start: 0; }
+  .rollo__banda::after { inset-inline-end: 0; }
+  .rollo__lienzo {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    width: var(--rollo-ancho);
+    /* Dónde está el rollo mientras nadie lo mueve. En un `translate` el 100 %
+       es el ancho del propio elemento, así que esto es la misma cuenta del
+       guion sin una línea de JavaScript: el rollo colocado en la parada
+       `--inicio`. En cuanto el guion mide la ventana, la reescribe. */
+    transform:
+      translateX(calc((100vw - 100%) * var(--inicio)))
+      translateY(calc(var(--rollo-alto) * -.155));
+    will-change: transform;
+  }
+  .rollo__pintura {
+    display: block;
+    width: 100%;
+    max-width: none;
+    height: auto;
+  }
+  /* Las paradas, dentro del dibujo. Viajan en horizontal con la pintura y se
+     quedan clavadas a la misma altura de la ventana, así que el encuadre puede
+     subir y bajar sin perder ninguna. */
+  .rollo__sellos {
+    position: absolute;
+    inset-block-end: 22%;
+    inset-inline-start: 0;
+    width: var(--rollo-ancho);
+    height: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    /* Por encima de las varillas: un sello medio tapado por el rollo dejaba
+       su número cortado e ilegible al pasar por el canto. */
+    z-index: 3;
+    transform: translateX(calc((100vw - 100%) * var(--inicio)));
+    will-change: transform;
+  }
+  .sello {
+    position: absolute;
+    /* Dónde cae cada parada sobre el rollo: en el centro de la ventana cuando
+       le toca. Aquí el 100 % es el ancho del rollo (es el bloque que contiene
+       al sello), así que la cuenta sale en CSS y no depende del guion. */
+    inset-inline-start: calc(50vw + (100% - 100vw) * (1 - var(--centro)));
+    inset-block-start: 0;
+    /* Un sello de coleccionista, no un punto de mapa: cuadrado, de bermellón,
+       con el número de la sección en reserva. Los que no tocan se quedan
+       estampados flojos, como la tinta de sello vieja. */
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin: -12px 0 0 -12px;
+    font: 500 12px/1 var(--ttod-font-ui);
+    font-variant-numeric: tabular-nums;
+    color: #f6ece0;
+    background: var(--bermellon);
+    border-radius: 2px;
+    /* Opaco siempre: con transparencia el número se quedaba en 2,8:1 sobre la
+       pintura. Los que no tocan se distinguen por tamaño, no por desvaído. */
+    box-shadow: 0 1px 2px rgb(33 28 21 / .35);
+    rotate: -2deg;
+    transition: scale .28s cubic-bezier(.2, .8, .2, 1);
+  }
+  .sello:nth-child(even) { rotate: 3deg; }
+  /* El de la parada en la que estás se estampa del todo: crece y se pone
+     opaco, el mismo número que lleva el colofón de debajo. */
+  .sello[data-actual] {
+    box-shadow: inset 0 0 0 2px rgb(246 236 224 / .55), inset 0 0 0 3px var(--bermellon), 0 2px 6px rgb(33 28 21 / .4);
+    scale: 1.45;
+    z-index: 1;
+  }
+
+  /* --- El colofón de la parada ----------------------------------------- */
+  /* Tinta sobre el papel del rollo. Lo secundario se distingue por tamaño,
+     versales y la tinta suave (6,0:1), no por un gris que no se lee. */
+  .rollo__ficha {
+    display: grid;
+    /* Por la misma razón que en `.rollo__ventana`: la fila de trece fichas no
+       puede decidir lo ancha que es la columna que la contiene. */
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: clamp(.4rem, 1svh, .9rem);
+    padding: clamp(.5rem, 1.4svh, 1.2rem) var(--ficha-margen) 0;
+  }
+  /* El índice: el número grande, a la izquierda, y las dos flechas juntas a la
+     derecha, donde llega el pulgar. Antes eran dos signos de 13 px perdidos en
+     el canto izquierdo. */
+  .rollo__indice {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .rollo__contador {
+    margin: 0 auto 0 0;
+    font-family: var(--ttod-font-ui);
+    font-size: .9375rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .08em;
+    color: var(--tinta-suave);
+  }
+  /* El número no se pinta en grande ni en rojo: ese número ya está estampado
+     en el sello del colofón, justo debajo. Aquí sólo dice dónde estás. */
+  .rollo__contador-n { font-weight: 600; color: var(--tinta); }
+  .rollo__flecha {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* 44 px de verdad: a 390 esto se toca con el pulgar (T11). */
+    width: 44px;
+    height: 44px;
+    padding: 0 0 .15rem;
+    border: 1px solid rgb(33 28 21 / .55);
+    border-radius: 50%;
+    font-family: var(--ttod-font-body);
+    font-size: 1.6rem;
+    line-height: 1;
+    color: var(--tinta);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color .2s ease, color .2s ease;
+  }
+  .rollo__flecha:hover { background: var(--tinta); color: var(--papel); }
+  .rollo__flecha[disabled] { opacity: .3; cursor: default; }
+  .rollo__flecha[disabled]:hover { background: transparent; color: var(--tinta); }
+  .rollo__flecha:focus-visible { outline: 3px solid var(--ttod-color-focus, #245d92); outline-offset: 2px; }
+
+  .rollo__paradas { list-style: none; margin: 0; padding: 0; }
+  .parada {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: .2rem clamp(.7rem, 2.6vw, 1.1rem);
+  }
+  .parada__n {
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: var(--ttod-tracking-ui, .14em);
+    color: var(--bermellon);
+  }
+  /* El sello estampado al lado del nombre: el mismo cuadrado que hay sobre la
+     pintura. Es lo que explica el punto rojo de arriba sin una leyenda. */
+  .parada__cabeza {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: .85rem;
+    align-items: start;
+  }
+  .parada__sello {
+    display: grid;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    margin-block-start: .2rem;
+    font: 500 1rem/1 var(--ttod-font-ui);
+    font-variant-numeric: tabular-nums;
+    color: #f6ece0;
+    background: var(--bermellon);
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 3px var(--bermellon), inset 0 0 0 4px rgb(246 236 224 / .6);
+    rotate: -3deg;
+  }
+  .parada__enlace { color: inherit; text-decoration: none; }
+  .parada__nombre {
+    display: block;
+    font-family: var(--ttod-font-titular);
+    font-weight: 300;
+    /* El nombre crece con lo que pesa su sección, igual que crece su tramo del
+       rollo: la que sostiene el corpus se lee a tamaño de titular. */
+    font-size: calc(1.45rem + var(--peso) * .95rem);
+    line-height: 1.06;
+    letter-spacing: -.015em;
+    color: var(--tinta);
+  }
+  .parada__dato {
+    display: block;
+    margin-block-start: .25rem;
+    font-family: var(--ttod-font-ui);
+    font-size: .9375rem;
+    line-height: 1.4;
+    color: var(--tinta-suave);
+  }
+  .parada__enlace:hover .parada__nombre { color: var(--bermellon); }
+
+  /* La cita de la sección: lo que de verdad se viene a leer, a cuerpo de
+     lectura de pie en el metro. */
+  .parada__cita {
+    grid-column: 1 / -1;
+    margin: clamp(.6rem, 1.4svh, 1.1rem) 0 0;
+    padding-inline-start: clamp(.9rem, 3vw, 1.3rem);
+    border-inline-start: 2px solid var(--bermellon);
+  }
+  .parada__cita p {
+    margin: 0;
+    max-width: 46ch;
+    font-family: var(--ttod-font-body);
+    font-size: clamp(1.125rem, 1.25vw, 1.3rem);
+    line-height: 1.5;
+    color: var(--tinta);
+    text-wrap: pretty;
+  }
+  .parada__cita footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 clamp(.9rem, 3vw, 1.6rem);
+    margin-block-start: clamp(.2rem, .6svh, .5rem);
+  }
+  .parada__id {
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    letter-spacing: var(--ttod-tracking-ui, .14em);
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+  }
+  .parada__ver {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--bermellon);
+    text-underline-offset: .35em;
+  }
+  /* El tramo que esta sección ocupa del rollo, dibujado con el mismo número que
+     mueve el scroll. Se llena desde la derecha, que es por donde se abre. */
+  .parada__tramo {
+    position: relative;
+    grid-column: 2;
+    display: block;
+    height: 2px;
+    margin-block-start: .55rem;
+    background: rgb(33 28 21 / .14);
+  }
+  .parada__tramo::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: var(--tramo);
+    background: var(--bermellon);
+  }
+
+  /* La cartela de la obra: separada del canto, con su filete, como la de una
+     sala de museo. */
+  .rollo__credito {
+    margin: clamp(.4rem, 1svh, .8rem) var(--ficha-margen) 0;
+    padding: clamp(.45rem, 1svh, .7rem) 0 clamp(.6rem, 1.4svh, 1rem);
+    border-block-start: 1px solid rgb(33 28 21 / .2);
+    font-family: var(--ttod-font-ui);
+    /* 15 px: a menos una auditoría de legibilidad lo marca como cuerpo pequeño en el teléfono, y
+       esto es la procedencia de la obra, que es lo que permite usarla. */
+    font-size: .9375rem;
+    line-height: 1.45;
+    color: var(--tinta-suave);
+  }
+
+  .rollo__cierre {
+    display: grid;
+    gap: clamp(.8rem, 2vh, 1.2rem);
+    justify-items: start;
+    padding: clamp(2rem, 6vh, 4rem) clamp(1.1rem, 5vw, 5.5rem) clamp(1rem, 3vh, 2rem);
+  }
+  .rollo__fin {
+    margin: 0;
+    max-width: 40ch;
+    font-family: var(--ttod-font-body);
+    font-size: clamp(1.0625rem, 1.15vw, 1.3rem);
+    line-height: 1.6;
+    color: #f8f5ec;
+  }
+
+  /* --- Los dos estados de la ficha -------------------------------------- */
+  /* Sin JavaScript (no hay `data-vivo`) la lista de arriba es el índice escrito
+     de las trece secciones, con sus filetes, debajo de la pintura: se pierde el
+     avance del rollo, no la información. */
+  .rollo:not([data-vivo]) .rollo__ventana { position: static; height: auto; overflow: visible; }
+  .rollo:not([data-vivo]) .rollo__escena { height: auto; }
+  /* Sin el guion la rejilla le daba a la banda su mínimo de 8rem y, pegada al
+     canto derecho, por la ventana sólo se veían los sellos y el papel vacío con
+     que arranca el rollo. Así que la banda tiene alto propio y la pintura se
+     coloca ya en la primera parada, con la misma cuenta que hace el guion
+     —`--inicio` es `1 − centro` de esa parada—. Lo que se pierde sin
+     JavaScript es el avance, no la vista. */
+  .rollo:not([data-vivo]) .rollo__banda { height: clamp(13rem, 40svh, 20rem); }
+  .rollo:not([data-vivo]) .rollo__indice { display: none; }
+  .rollo:not([data-vivo]) .parada {
+    padding-block: clamp(.7rem, 1.8vh, 1.1rem);
+    border-block-end: 1px solid rgb(33 28 21 / .14);
+  }
+  .rollo:not([data-vivo]) .parada__nombre { font-size: 1.3rem; }
+  .rollo:not([data-vivo]) .parada__tramo { display: none; }
+
+  /* Con JavaScript, una parada cada vez. Las trece no se apilan en la misma
+     celda apagadas: van en fila, cada una del ancho de la ventana, y la fila
+     viaja en horizontal con la misma cuenta que mueve la pintura. La ficha es
+     otro tramo del mismo rollo.
+
+     Antes se cruzaban en una sola celda con `opacity: 0`, y eso tenía dos
+     problemas: el cambio de parada era un fundido —el movimiento genérico que
+     este proyecto no quiere— y doce de las trece secciones estaban apagadas en
+     el sitio, que es la firma del «texto que nunca aparece» (lo marcaba
+     `impeccable detect`: el 42 % del texto de la página). Ahora no hay nada
+     apagado: lo que no estás leyendo está en otro punto del camino, fuera de la
+     ventana, como el tramo de pintura que le corresponde. */
+  /* El margen de la ficha pasa a cada parada: así la fila mide pantallas
+     enteras y la recorta la ventana, que ya recorta la pintura. Recortar en la
+     propia ficha habría cortado también el foco del teclado, que se dibuja
+     justo en ese canto. */
+  .rollo[data-vivo] .rollo__ficha { padding-inline: 0; }
+  .rollo[data-vivo] .rollo__indice { margin-inline: var(--ficha-margen); }
+  .rollo[data-vivo] .parada { padding-inline: var(--ficha-margen); }
+  .rollo[data-vivo] .rollo__paradas {
+    display: grid;
+    /* Trece columnas del ancho de la ventana. En una rejilla la fila mide lo
+       que mide la parada más larga, así que ninguna cita se corta por abajo. */
+    grid-template-columns: repeat(var(--paradas), 100%);
+    width: 100%;
+    transform: translate3d(var(--fila, 0px), 0, 0);
+    /* El rollo barre con el dedo; la ficha salta de parada en parada, como el
+       `Previous`/`Next` del museo. Dos barridos a la vez no se leen. */
+    transition: transform .45s cubic-bezier(.2, .8, .2, 1);
+    will-change: transform;
+  }
+  .rollo[data-vivo] .parada {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    /* La parada que no toca no se lee, pero sigue en el documento y en el orden
+       de tabulación: al enfocarla, el guion lleva la página hasta ella. */
+    transition: opacity .3s cubic-bezier(.2, .8, .2, 1);
+  }
+  /* Lo único que se atenúa es lo que ya está fuera de la ventana: así el canto
+     no corta una cita por la mitad de una palabra. */
+  .rollo[data-vivo] .parada:not([data-actual]):not(:focus-within) { opacity: .25; }
+  /* El número ya lo dice el contador de arriba; repetirlo al lado del nombre
+     era decir dos veces lo mismo en la misma pantalla. */
+  .rollo[data-vivo] .parada__n { display: none; }
+
+  /* --- 10 · Cierre ----------------------------------------------------- */
+  .cierre { position: relative; }
+  .cierre__texto {
+    position: relative;
+    z-index: 1;
+    padding: clamp(2rem, 5vh, 4rem) clamp(1.1rem, 5vw, 5.5rem) clamp(2rem, 5vh, 3.5rem);
+  }
+  .cierre__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: clamp(1rem, 2.5vw, 2rem);
+    margin: clamp(1.4rem, 3.5vh, 2.4rem) 0 0;
+  }
+  .boton {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: .7rem 1.6rem;
+    /* Canto redondo: ninguna forma recta dura en la portada. */
+    border-radius: 999px;
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: #f6f2e6;
+    background: #1f2a20;
+    text-decoration: none;
+    transition: background-color .3s ease;
+  }
+  .boton:hover { background: #121a13; }
+  .enlace {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-family: var(--ttod-font-ui);
+    font-size: var(--ttod-text-ui, .8125rem);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #6c2419;
+    text-underline-offset: .35em;
+  }
+
+  .cierre__risco {
+    position: relative;
+    margin: 0;
+    height: clamp(13rem, 32vh, 22rem);
+    overflow: clip;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 22%, #000 66%, rgba(0,0,0,0) 100%);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 22%, #000 66%, rgba(0,0,0,0) 100%);
+  }
+  /* El acantilado entra por la izquierda y su canto recto de abajo se va bajo
+     el papel con la misma máscara. Arriba no hace falta: ahí el propio recorte
+     ya es cielo transparente. */
+  .cierre__pintura {
+    position: absolute;
+    inset: auto auto -6% -22%;
+    /* Tailwind (preflight) le pone `max-width: 100%` a toda imagen: sin esto el
+       acantilado se quedaba en el ancho de la pantalla y no entraba por el canto. */
+    max-width: none;
+    width: 185%;
+    will-change: transform;
+  }
+
+  /* En la sombra el botón es lo que tiene luz, no al revés. */
+  .cierre .boton { color: #1b2419; background: #f3eddc; }
+  .cierre .boton:hover { background: #ffffff; }
+  /* El enlace del sitio es tinta roja sobre papel claro; en los dos cierres de
+     este bloque el papel es el valle en sombra, y ahí el rojo medía 1,36:1 —se
+     leía «Recorrer el corpus entero» casi del color del fondo—. El del rollo se
+     quedaba fuera de esta regla por llamarse `.rollo__cierre`. */
+  .cierre .enlace,
+  .rollo__cierre .enlace { color: #f0d6c8; }
+
+  .sigue a:focus-visible {
+    outline: 3px solid var(--ttod-color-focus, #245d92);
+    outline-offset: .2em;
+  }
+
+  /* A partir de una pantalla de 32rem el acercamiento de móvil sobra: la
+     ventana cabe casi entera y, sobre todo, a 190vw en una tableta la caja pide
+     más píxeles de los que tiene el recorte y la pintura se vería blanda. */
+  @media (min-width: 32rem) {
+    /* El acantilado del cierre, igual: a 185 % en una tableta se pintaba a
+       1421 px y el recorte tiene 2136, así que una pantalla de densidad 2 lo
+       habría visto blando. */
+    .cierre__pintura { width: 135%; inset: auto auto -4% -14%; }
+  }
+
+  /* --- A partir de 56rem: tesis a dos columnas (tramo 7 de la referencia) - */
+  @media (min-width: 56rem) {
+    .tesis {
+      grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
+      align-items: stretch;
+    }
+    /* En ancho la pintura ocupa la columna izquierda y se disuelve hacia el
+       texto: el degradado cambia de vertical a horizontal, nunca un canto. */
+    .tesis__lejos {
+      height: auto;
+      min-height: 32rem;
+      /* Dos máscaras cruzadas, no una. Con solo la horizontal el canto de abajo
+         de la banda quedaba recto de lado a lado (y el de arriba también): el
+         mismo corte que ya se rechazó, solo que en horizontal. */
+      -webkit-mask-image:
+        linear-gradient(to right, #000 52%, rgba(0,0,0,0) 99%),
+        linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 9%, #000 78%, rgba(0,0,0,0) 100%);
+      mask-image:
+        linear-gradient(to right, #000 52%, rgba(0,0,0,0) 99%),
+        linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 9%, #000 78%, rgba(0,0,0,0) 100%);
+      -webkit-mask-composite: source-in;
+      mask-composite: intersect;
+    }
+    .tesis__texto { align-self: center; padding-block: clamp(4rem, 10vh, 7rem); }
+    .cierre__pintura { inset: auto auto 0 -8%; width: 115%; }
+
+    /* En ancho el rollo se abre más: la banda crece y la pintura se dibuja más
+       alta, así que por la ventana pasa más recorrido y la obra se ve con el
+       detalle que tiene. La ficha pasa a la derecha del contador, en una sola
+       línea: a 1440 una ficha apilada deja media pantalla vacía. */
+    .rollo__banda { --rollo-alto: 1250px; }
+    /* El colofón a dos columnas: a la izquierda el sello y el nombre, a la
+       derecha la cita a cuerpo de titular, que es lo que llena el ancho. */
+    .rollo[data-vivo] .parada {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      column-gap: clamp(2rem, 5vw, 5rem);
+      align-items: start;
+    }
+    .rollo[data-vivo] .parada__cita { grid-column: 2; margin-block-start: 0; }
+    .parada__cita p {
+      max-width: 34ch;
+      font-family: var(--ttod-font-titular);
+      font-weight: 300;
+      font-size: clamp(1.5rem, 2vw, 2.1rem);
+      line-height: 1.28;
+    }
+    .parada__nombre { font-size: calc(2rem + var(--peso) * 1.8rem); }
+    .parada__sello { width: 3rem; height: 3rem; font-size: 1.2rem; }
+    .sello { width: 30px; height: 30px; margin: -15px 0 0 -15px; font-size: 14px; }
+  }
+
+  /* Sin movimiento no se quita la obra, se quita el movimiento. */
+  @media (prefers-reduced-motion: reduce) {
+    .tesis__pintura, .cierre__pintura { transform: none !important; }
+    /* El rollo no avanza: se queda abierto en su primera parada y las trece
+       secciones quedan escritas debajo, con su número, su tramo y su enlace
+       (la forma de `.rollo:not([data-vivo])`). No se quita la obra, se quita el
+       movimiento —y sobre todo no se esconde texto esperando un scroll. */
+    .rollo__lienzo, .rollo__sellos, .sello { transition: none !important; }
+  }
+
+  /* El filete con el rombo rubricado del oráculo, bajo cada titular. */
+  .titular::after {
+    content: '';
+    display: block;
+    width: 7rem;
+    height: .5rem;
+    margin-top: clamp(.8rem, 2vh, 1.1rem);
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0L10 5L5 10L0 5Z' fill='%23d0644f'/%3E%3C/svg%3E") left center / .5rem .5rem no-repeat,
+      linear-gradient(rgb(247 243 231 / .4), rgb(247 243 231 / .4)) right center / calc(100% - .9rem) 1px no-repeat;
+  }
+
+  /* Las nubes ruyi tienen su estilo en styles/movimiento.css (compartido con
+     Sabiduría); aquí sólo los capítulos que las alojan. */
+  .tesis__texto, .rollo__portada { position: relative; }
+  /* La nube del cierre necesita su hueco: sin él pisaba «Recorrer el corpus
+     entero», justo encima. */
+  .cierre__texto { padding-top: calc(clamp(17rem, 78vw, 30rem) * .365 + 1rem); }
+
+  /* El sello del rollo se estampa: llega grande y cae con un golpe seco. */
+  .sello[data-actual] { animation: sello-golpe .34s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes sello-golpe { from { scale: 2.2; } to { scale: 1.45; } }
+  .rollo[data-vivo] .parada[data-actual] .parada__sello { animation: sello-golpe-colofon .34s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes sello-golpe-colofon { from { scale: 1.5; rotate: -9deg; } to { scale: 1; rotate: -3deg; } }
+  /* La cita del colofón sube a su renglón cuando su parada llega. */
+  .rollo[data-vivo] .parada[data-actual] .parada__cita p { animation: cita-sube .42s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes cita-sube { from { transform: translateY(.7em); } }
+  .parada__sello { transition: rotate .25s cubic-bezier(.3, 1.5, .5, 1); }
+  .parada__enlace:hover ~ .parada__sello, .parada__cabeza:hover .parada__sello { rotate: 4deg; }
+  @media (prefers-reduced-motion: reduce) {
+    .sello[data-actual], .rollo[data-vivo] .parada[data-actual] .parada__sello,
+    .rollo[data-vivo] .parada[data-actual] .parada__cita p { animation: none; }
+  }
+
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .tesis__lejos { view-timeline: --lejos block; }
+      .tesis__pintura { animation: sigue-lejos linear both; animation-timeline: --lejos; }
+      .cierre__risco { view-timeline: --risco block; }
+      .cierre__pintura { animation: sigue-risco linear both; animation-timeline: --risco; }
+      /* El rollo avanza con el scroll de su escena sin pasar por el hilo
+         principal: el guion solo mide (`--recorrido`, `--deriva`) y marca
+         `data-css`; la cuenta es la misma de `colocar()`. `contain` va de la
+         escena tocando arriba a la escena tocando abajo, el mismo tramo que
+         el `start: 'top top'` / `end: 'bottom bottom'` del guion. */
+      .rollo[data-vivo][data-css] .rollo__escena { view-timeline: --rollo block; }
+      .rollo[data-vivo][data-css] .rollo__lienzo,
+      .rollo[data-vivo][data-css] .rollo__sellos {
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --rollo;
+        animation-range: contain 0% contain 100%;
+      }
+      .rollo[data-vivo][data-css] .rollo__lienzo { animation-name: rollo-lienzo; }
+      .rollo[data-vivo][data-css] .rollo__sellos { animation-name: rollo-sellos; }
+    }
+  }
+  @keyframes rollo-lienzo {
+    from { transform: translate3d(calc(var(--recorrido) * -1px), calc(var(--deriva) * -.28px), 0); }
+    to { transform: translate3d(0, calc(var(--deriva) * -.8px), 0); }
+  }
+  @keyframes rollo-sellos {
+    from { transform: translate3d(calc(var(--recorrido) * -1px), 0, 0); }
+    to { transform: translate3d(0, 0, 0); }
+  }
+  @keyframes sigue-lejos { from { transform: translateY(-6%) scale(1.12); } to { transform: translateY(6%) scale(1.02); } }
+  @keyframes sigue-risco { from { transform: translateY(14%); } to { transform: translateY(-6%); } }
+</style>
+
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const seccion = document.querySelector<HTMLElement>('[data-sigue]');
+  if (seccion) {
+    const mm = gsap.matchMedia();
+
+    // Donde el navegador ata animaciones al scroll en CSS, el parallax lo hace
+    // el compositor (reglas `@supports (animation-timeline: view())` del
+    // estilo): con GSAP cada fotograma de scroll recalculaba estilos en el
+    // hilo principal. GSAP queda para los que no lo tienen.
+    const cssScroll = CSS.supports('animation-timeline: view()');
+    if (!cssScroll) mm.add('(prefers-reduced-motion: no-preference)', () => {
+      // Tres velocidades, como en el hero: lo lejano apenas se mueve, el
+      // acantilado del cierre arrastra más, y las rayas del corpus se llenan.
+      const lejos = seccion.querySelector<HTMLElement>('[data-lejos]');
+      if (lejos) {
+        gsap.fromTo(
+          lejos,
+          { yPercent: -6, scale: 1.12 },
+          {
+            yPercent: 6,
+            scale: 1.02,
+            ease: 'none',
+            scrollTrigger: { trigger: lejos.closest('figure')!, start: 'top bottom', end: 'bottom top', scrub: .5 },
+          }
+        );
+      }
+
+      const risco = seccion.querySelector<HTMLElement>('[data-risco]');
+      if (risco) {
+        gsap.fromTo(
+          risco,
+          { yPercent: 14 },
+          {
+            yPercent: -6,
+            ease: 'none',
+            scrollTrigger: { trigger: risco.closest('figure')!, start: 'top bottom', end: 'bottom top', scrub: .5 },
+          }
+        );
+      }
+
+      return () => {};
+    });
+
+    // --- El rollo -------------------------------------------------------
+    // Lo medido en las dos referencias (`home-secciones/movimiento.md`): en el
+    // Qingming el rollo se mueve sólo mientras el dedo lo arrastra, sin inercia
+    // y sin avance automático; en Stripe Press el lienzo no se mueve nunca y lo
+    // que avanza es la escena de dentro, atada al `scrollY`. Aquí se juntan las
+    // dos: la ventana se queda pegada (`sticky`, no es scroll secuestrado) y la
+    // pintura avanza con la página, lineal, sin inercia. El dedo manda.
+    // `data-vivo` sólo está si el bloque es el rollo que avanza. Con movimiento
+    // reducido no está, y entonces aquí no hay nada que conducir: la pintura se
+    // queda colocada en la primera parada por CSS y las trece están escritas.
+    const rollo = seccion.querySelector<HTMLElement>('[data-rollo][data-vivo]');
+    if (rollo) {
+      const escena = rollo.querySelector<HTMLElement>('[data-escena]')!;
+      const banda = rollo.querySelector<HTMLElement>('.rollo__banda')!;
+      const lienzo = rollo.querySelector<HTMLElement>('[data-lienzo]')!;
+      const sellos = [...rollo.querySelectorAll<HTMLElement>('[data-sello]')];
+      const capaSellos = rollo.querySelector<HTMLElement>('[data-sellos]')!;
+      const paradas = [...rollo.querySelectorAll<HTMLElement>('[data-parada]')];
+      const fila = rollo.querySelector<HTMLElement>('[data-paradas]')!;
+      const contador = rollo.querySelector<HTMLElement>('[data-contador-n]')!;
+      const flechas = [...rollo.querySelectorAll<HTMLButtonElement>('[data-ir]')];
+      const centros = paradas.map((p) => Number(p.dataset.centro));
+      // La pintura del rollo se descodifica antes de llegar (pantalla y media
+      // antes): descodificarla al entrar costaba un fotograma de 125 ms con el
+      // freno de CPU 4×.
+      const pintura = rollo.querySelector<HTMLImageElement>('.rollo__pintura');
+      if (pintura) {
+        const antes = new IntersectionObserver(([e]) => {
+          if (!e.isIntersecting) return;
+          antes.disconnect();
+          pintura.decode().catch(() => {});
+        }, { rootMargin: '150% 0px' });
+        antes.observe(rollo);
+      }
+
+      // Cuánto se mueve la pintura y cuánto baja el encuadre. Se vuelve a medir
+      // en cada `refresh` porque el ancho del rollo sale de un `calc` con la
+      // altura de la banda, que cambia con la pantalla.
+      let recorrido = 0;
+      let deriva = 0;
+      const medir = () => {
+        recorrido = Math.max(0, lienzo.offsetWidth - banda.clientWidth);
+        deriva = Math.max(0, lienzo.offsetHeight - banda.clientHeight);
+        rollo.style.setProperty('--recorrido', recorrido.toFixed(2));
+        rollo.style.setProperty('--deriva', deriva.toFixed(2));
+        if (cssScroll) rollo.setAttribute('data-css', '');
+        // El sello de una parada tiene que caer en el centro de la ventana
+        // justo cuando esa parada es la actual. Eso depende del ancho real, así
+        // que se calcula aquí y no en el CSS.
+        const medio = banda.clientWidth / 2;
+        sellos.forEach((sello, i) => {
+          const u = (medio + recorrido * (1 - centros[i])) / lienzo.offsetWidth;
+          sello.style.insetInlineStart = `${(u * 100).toFixed(4)}%`;
+        });
+        // La fila de fichas se mide en pantallas, así que al girar el teléfono
+        // hay que recolocarla o la parada actual se queda a medio camino.
+        if (actual >= 0) colocarFila(actual);
+      };
+
+      // La fila de las trece fichas se corre una pantalla entera: la parada que
+      // toca queda en la ventana y las otras doce, fuera. Nada se apaga en el
+      // sitio esperando un scroll.
+      const colocarFila = (i: number) => {
+        fila.style.setProperty('--fila', `${(-i * fila.clientWidth).toFixed(2)}px`);
+      };
+
+      let actual = -1;
+      const enseñar = (i: number) => {
+        if (i === actual) return;
+        actual = i;
+        colocarFila(i);
+        paradas.forEach((p, j) => p.toggleAttribute('data-actual', j === i));
+        sellos.forEach((s, j) => s.toggleAttribute('data-actual', j === i));
+        contador.textContent = String(i + 1).padStart(2, '0');
+        flechas[0].disabled = i === 0;
+        flechas[1].disabled = i === paradas.length - 1;
+      };
+
+      const colocar = (p: number) => {
+        // El rollo se lee de derecha a izquierda: empieza enseñando su extremo
+        // derecho y se descubre hacia la izquierda según baja la página.
+        const x = -recorrido * (1 - p);
+        // El encuadre baja a la vez, despacio: del 28 % al 80 % de lo que
+        // sobra de alto. Es el segundo movimiento, y es lento a propósito —dos
+        // barridos rápidos a la vez marean—. Empieza al 28 % y no al 14 %
+        // porque arriba del todo, en la primera parada, está la inscripción de
+        // Qianlong: con la ventana más alta el bloque abría sobre una pared de
+        // caligrafía, que es justo el fondo que no se quiere.
+        const y = -deriva * (0.28 + p * 0.52);
+        // Con la animación ligada al scroll (ver el estilo) la pintura la mueve
+        // el compositor: aquí no se escribe nada por fotograma, solo cambia la
+        // parada actual cuando toca. Escribir el `transform` en cada `onUpdate`
+        // ensuciaba el estilo justo antes de que el resto de disparadores leyera
+        // el scroll, y en un móvil lento eso eran fotogramas de 140 ms.
+        if (!cssScroll || quieto.matches) {
+          lienzo.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+          capaSellos.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
+        }
+        let i = centros.length - 1;
+        while (i > 0 && p < centros[i] - (centros[i] - centros[i - 1]) / 2) i -= 1;
+        enseñar(i);
+      };
+
+      // Con movimiento reducido el rollo no barre: se coloca de golpe en el
+      // centro del tramo de la parada en la que estás.
+      const quieto = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+      ScrollTrigger.create({
+        trigger: escena,
+        start: 'top top',
+        end: 'bottom bottom',
+        onRefresh: (self) => { medir(); colocar(self.progress); },
+        onUpdate: (self) => {
+          if (!quieto.matches) return colocar(self.progress);
+          let i = centros.length - 1;
+          while (i > 0 && self.progress < centros[i] - (centros[i] - centros[i - 1]) / 2) i -= 1;
+          colocar(centros[i]);
+        },
+      });
+
+      // Las dos flechas del índice, como el `Previous` / `Next` del museo: no
+      // mueven el rollo por su cuenta, mueven la página hasta esa parada. Así
+      // no hay dos cosas conduciendo el mismo scroll.
+      const irA = (i: number, suave = true) => {
+        // Dónde empieza la escena **en la página**. Con `escena.offsetTop` se
+        // medía contra `.rollo`, que es `position: relative` y por tanto el
+        // ancestro posicionado: salía un número de unos cientos de píxeles en
+        // vez de los 5.400 reales, así que pulsar ‹ o › —o tabular a una
+        // parada— sacaba la página del bloque entero. Medido a 1440: el foco
+        // caía en y = 4.326 con la ventana en y = 3.709.
+        const tope = escena.getBoundingClientRect().top + window.scrollY;
+        const largo = escena.offsetHeight - window.innerHeight;
+        window.scrollTo({
+          top: tope + largo * centros[i],
+          behavior: suave && !quieto.matches ? 'smooth' : 'auto',
+        });
+      };
+      flechas.forEach((boton) => {
+        boton.addEventListener('click', () => {
+          const i = actual + Number(boton.dataset.ir);
+          if (i >= 0 && i < paradas.length) irA(i);
+        });
+      });
+      // Tabulando se llega a las trece: al enfocar una, el rollo va a buscarla.
+      // Aquí el salto es **en seco**, no suave como el de las flechas. Con el
+      // scroll suave medí que de trece paradas sólo tres quedaban dentro de la
+      // pantalla al recibir el foco: el siguiente tabulador llega antes de que
+      // termine el viaje, y mientras tanto el foco está en una ficha recortada
+      // por el canto de la ventana. Quien tabula quiere llegar, no viajar.
+      paradas.forEach((parada, i) => {
+        parada.addEventListener('focusin', () => { if (i !== actual) irA(i, false); });
+      });
+    }
+
+    // Las bandas de pintura cargan tarde (`lazy`) y cambian el alto de la
+    // página: sin volver a medir, los tramos de la tinta apuntan a un sitio por
+    // el que ya se ha pasado y el párrafo se queda sin pintar — en blanco — si
+    // alguien recarga a media página. Medido a 390 saltando al pie.
+    const remide = () => ScrollTrigger.refresh();
+    window.addEventListener('load', remide, { once: true });
+    Promise.all(
+      [...seccion.querySelectorAll('img')].map((img) =>
+        img.complete ? Promise.resolve() : new Promise((ok) => img.addEventListener('load', ok, { once: true }))
+      )
+    ).then(remide);
+  }
+</script>
+
+<script>
+  // Nubes ruyi y entradas de cada capítulo (components/movimiento.ts): las
+  // líneas suben desde su máscara, las cifras y las acciones se asientan, el
+  // rollo llega como un objeto que se posa. Todo una vez, al asomar.
+  import { nubesRuyi, subirLineas, asentar, asentarEnFila } from './movimiento';
+
+  const sigue = document.querySelector('[data-sigue]');
+  if (sigue) {
+    sigue.querySelectorAll('.titular').forEach((h) => subirLineas(h));
+    sigue.querySelectorAll('.parrafo, .rollo__gramatica, .rollo__fin').forEach((p) => subirLineas(p, .12));
+    asentarEnFila(sigue.querySelector('.cifras'), '.cifra');
+    asentar(sigue.querySelector('.rollo__papel'), { y: 48 });
+    asentar(sigue.querySelector('.cierre__acciones'), { y: 24, retraso: .15 });
+    nubesRuyi(sigue);
+  }
+</script>

@@ -1,0 +1,1076 @@
+/* El armario del corpus — vista `/wisdom`.
+
+   Concepto: cartas animadas que parecen libros en 3D, que se abren y así
+   recopilan mejor todo. Cada sección del corpus es un
+   volumen cosido: tapa, lomo y canto son caras reales en 3D de CSS, el grosor
+   del lomo es cuántos aforismos guarda, y al tocarlo la tapa gira sobre su
+   bisagra y aparece la primera página.
+
+   Sin JavaScript: `<details name="armario">` abre uno y cierra el anterior, el
+   teclado y el lector de pantalla entran por el `<summary>`, y todo lo que se
+   mueve son `transform` y `opacity` (compuestos, sin recalcular la maqueta). */
+
+.armario-vista {
+  /* El armario es más ancho que la columna de lectura: la balda se desliza de
+     borde a borde de la pantalla, como una estantería de verdad. */
+  max-width: var(--ttod-max-content);
+  padding-top: var(--ttod-space-8);
+}
+
+/* ---------- La entrada ---------- */
+
+.armario-entrada { margin-block: var(--ttod-space-8) var(--ttod-space-6); }
+
+.armario-titulo {
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: var(--ttod-text-display);
+  line-height: 1.02;
+  margin: 0 0 var(--ttod-space-4);
+  /* Ni palabra partida ni huérfana en la última línea. */
+  text-wrap: pretty;
+  hyphens: none;
+}
+
+.armario-intro {
+  max-width: 34em;
+  margin: 0 0 var(--ttod-space-4);
+  font-size: var(--ttod-text-base);
+  line-height: 1.55;
+  color: var(--ttod-color-muted);
+  text-wrap: pretty;
+  hyphens: none;
+}
+
+/* El tamaño del corpus, en texto llano: las cifras de la página se explican. */
+.armario-recuento {
+  margin: 0;
+  font: 500 var(--ttod-text-ui) / 1.4 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-ink);
+}
+
+.armario-pista {
+  margin: var(--ttod-space-6) 0 0;
+  font: var(--ttod-text-ui) / 1.4 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-muted);
+}
+.armario-pista::before { content: "⟷"; margin-inline-end: .5em; }
+
+
+/* ---------- La balda ---------- */
+
+.armario {
+  position: relative;
+  /* La balda sangra hasta el borde de la pantalla: en el móvil los libros
+     entran y salen por los lados, no dentro de una caja con margen. */
+  margin-inline: calc(clamp(1rem, 5vw, 1.5rem) * -1);
+}
+
+/* El canto de la balda: una línea de madera con su sombra, detrás de los
+   libros. Desaparece cuando hay un libro abierto, porque entonces el libro
+   ya no está en el estante, está en la mesa. */
+.armario::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 2.5rem;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--ttod-color-line) 8%, var(--ttod-color-line) 92%, transparent);
+  box-shadow: 0 6px 14px -6px rgb(27 23 16 / .5);
+  opacity: .8;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+
+.armario-balda {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(.75rem, 4vw, 1.75rem);
+  padding: var(--ttod-space-8) clamp(1rem, 5vw, 1.5rem) 2.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  /* El libro al que se engancha la balda conserva su margen: sin esto, el
+     libro abierto quedaba pegado al borde de la pantalla. */
+  scroll-padding-inline: clamp(1rem, 5vw, 1.5rem);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ttod-color-line) transparent;
+}
+
+/* ---------- Un volumen ---------- */
+
+.libro {
+  --tapa-ancho: 9.25rem;
+  --alto: 14.25rem;
+  --tapa-abierta: var(--tapa-ancho);
+  --alto-abierto: var(--alto);
+  --muelle: linear(0, 0.0618, 0.2078, 0.3896, 0.5728, 0.7359, 0.8677, 0.9651, 1.0297, 1.0666, 1.0819, 1.0821, 1.0728, 1.0587, 1.0431, 1.0285, 1.0161, 1.0066, 0.9999, 0.9957, 0.9936, 0.993, 0.9935, 0.9945, 0.9958, 0.997, 0.9982);
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  perspective: 900px;
+  /* Los libros van por delante del canto de la balda, que es la línea del
+     estante, no una raya encima de los lomos. */
+  position: relative;
+  z-index: 1;
+  transition: opacity 180ms ease, display 180ms allow-discrete;
+}
+
+/* Los tonos de tapa salen de la paleta de la pintura: tinta, cuero, verde
+   botánico, sello y pizarra. Cinco, repartidos por el orden del armario, para
+   que dos vecinos nunca coincidan. */
+.libro { --tapa: #3b3222; --tapa-alta: #4b4130; --tapa-baja: #2a2318; --hilo: #c3a24e; }
+.libro[style*="--tono:1"] { --tapa: #6a4722; --tapa-alta: #7d5930; --tapa-baja: #4e3317; --hilo: #d9b663; }
+.libro[style*="--tono:2"] { --tapa: #3f5347; --tapa-alta: #4e6455; --tapa-baja: #2d3d34; --hilo: #a9bb8c; }
+.libro[style*="--tono:3"] { --tapa: #6d2b20; --tapa-alta: #813a2c; --tapa-baja: #4f1d15; --hilo: #e0a878; }
+.libro[style*="--tono:4"] { --tapa: #2f3b46; --tapa-alta: #3c4a57; --tapa-baja: #212b33; --hilo: #9fb4c2; }
+
+/* Los demás libros se quedan en la balda, a un dedo de distancia: quitarlos
+   del flujo costaba 183 ms de fotograma al cerrar (freno de CPU 4x), y además
+   obligaba a volver atrás para cambiar de volumen. */
+
+
+.libro-abrir {
+  display: block;
+  width: var(--tapa-ancho);
+  list-style: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.libro-abrir::-webkit-details-marker { display: none; }
+.libro-abrir::marker { content: ""; }
+
+.volumen {
+  /* `<span>` por fuera (vive dentro de un `summary`), caja por dentro. */
+  display: block;
+  position: relative;
+  width: var(--tapa-ancho);
+  height: var(--alto);
+  transform-style: preserve-3d;
+  /* Cerrado, el libro está de pie y girado: se le ve la tapa y el lomo a la
+     vez, que es lo que hace que se lea como un objeto y no como una tarjeta.
+     El lomo está a la derecha: el libro se abre de derecha a izquierda, como
+     un libro cosido chino. Es la manera de que al abrirse la tapa quepa en la
+     pantalla en vez de salirse por el borde izquierdo. */
+  transform: rotateY(-21deg) translateZ(0);
+  /* Sólo `transform`: animar el ancho obligaba al navegador a recomponer la
+     balda entera en cada fotograma —medido con el freno de CPU 4x: 133 ms el
+     peor fotograma al abrir—. El libro abierto mide lo mismo que cerrado. */
+  transition: transform 620ms var(--muelle);
+}
+.libro-abrir:hover .volumen { transform: rotateY(-15deg) translateY(-4px); }
+
+/* La sombra del libro sobre la balda. */
+.volumen::after {
+  content: "";
+  position: absolute;
+  /* Dentro de la caja del libro: una sombra que sobresale por los lados
+     ensancha el scroll de la balda y deja un hueco muerto al final. */
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 18px;
+  background: radial-gradient(60% 100% at 42% 0%, rgb(27 23 16 / .42), transparent 72%);
+  transform: translateZ(-1px);
+  transition: opacity 400ms ease;
+}
+
+.cara {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+/* La contratapa: la cara de atrás del volumen, medio grosor hacia dentro. */
+.contratapa {
+  background: linear-gradient(100deg, var(--tapa-baja), var(--tapa));
+  /* Cantos redondos por fuera, rectos en el lomo (a la derecha). */
+  border-radius: 5px 2px 2px 5px;
+  transform: translateZ(calc(var(--grosor) / -2));
+}
+
+/* El lomo: la cara derecha, tan ancha como grueso es el libro. */
+.lomo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: var(--grosor);
+  padding-block: .45rem;
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / .22), rgb(255 255 255 / .09) 38%, transparent 65%, rgb(0 0 0 / .34)),
+    var(--tapa);
+  border-radius: 2px;
+  right: 0;
+  left: auto;
+  transform-origin: right center;
+  transform: rotateY(90deg) translateX(calc(var(--grosor) / 2));
+  color: #f0e6d2;
+  font-family: var(--ttod-font-ui);
+}
+
+.lomo-titulo {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: var(--ttod-font-titular);
+  /* Nunca por debajo de 12 px, por fino que sea el lomo. */
+  font-size: max(12px, min(.8rem, calc(var(--grosor) * .4)));
+  letter-spacing: .04em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* La tapa: la cara de delante, con su bisagra en el lomo (a la derecha). */
+.tapa {
+  transform-origin: right center;
+  transform: translateZ(calc(var(--grosor) / 2));
+  transform-style: preserve-3d;
+  transition: transform 620ms var(--muelle);
+}
+
+.tapa-cara {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  backface-visibility: hidden;
+  border-radius: 5px 2px 2px 5px;
+}
+
+.tapa-fuera {
+  justify-content: flex-end;
+  gap: .3rem;
+  padding: 1rem .85rem 1.1rem;
+  color: #f3ead6;
+  background:
+    /* El tejido de la tela: dos tramas finas cruzadas, no una imagen. */
+    repeating-linear-gradient(90deg, rgb(255 255 255 / .05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / .07) 0 1px, transparent 1px 3px),
+    linear-gradient(215deg, var(--tapa-alta), var(--tapa) 46%, var(--tapa-baja));
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / .28),
+    inset 1px 0 0 1px rgb(255 255 255 / .06),
+    6px 10px 22px -12px rgb(27 23 16 / .75);
+}
+
+/* El filete dorado de la tapa, como el hilo de una encuadernación. */
+.tapa-fuera::before {
+  content: "";
+  position: absolute;
+  inset: .55rem;
+  border: 1px solid color-mix(in srgb, var(--hilo) 62%, transparent);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.tapa-rotulo {
+  font: 500 var(--ttod-text-ui) / 1 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: #ecdcb4;
+}
+
+.tapa-titulo {
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: 1.32rem;
+  line-height: 1.08;
+  text-wrap: balance;
+  hyphens: none;
+}
+
+.tapa-cuenta {
+  font: var(--ttod-text-ui) / 1.3 var(--ttod-font-ui);
+  /* Opaco: con transparencia la auditoría medía la tinta contra el papel. */
+  color: #e6dcc6;
+}
+
+/* El sello: la inicial de la sección grabada en rojo, arriba y lejos del lomo,
+   donde un impresor pondría el suyo. */
+.tapa-sello {
+  position: absolute;
+  top: 1.05rem;
+  left: .95rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: grid;
+  place-items: center;
+  font: 500 1rem/1 var(--ttod-font-titular);
+  color: #f6ece0;
+  background: var(--ttod-color-seal);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .3);
+}
+
+/* La primera página, cosida al cuaderno: duerme un par de píxeles por debajo
+   de la tapa y es lo que aparece cuando el libro se abre. */
+.primera {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: .25rem;
+  padding: 1.1rem 1rem 1.2rem;
+  transform: translateZ(calc(var(--grosor) / 2 - 2px));
+  background:
+    repeating-linear-gradient(135deg, rgb(27 23 16 / .035) 0 2px, transparent 2px 7px),
+    linear-gradient(260deg, rgb(27 23 16 / .14), transparent 14%),
+    var(--ttod-color-surface-raised);
+  /* El canto: las hojas que quedan debajo de esta. Tres filetes, no una
+     imagen: es el grosor del libro visto por el borde. */
+  box-shadow:
+    inset 0 0 0 1px var(--ttod-color-line-subtle),
+    inset -10px 0 12px -10px rgb(27 23 16 / .38),
+    -2px 1px 0 rgb(27 23 16 / .14),
+    -4px 2px 0 rgb(27 23 16 / .1),
+    -6px 3px 0 rgb(27 23 16 / .06);
+}
+.primera-titulo {
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: 1.5rem;
+  line-height: 1.05;
+  text-wrap: balance;
+  hyphens: none;
+}
+.primera-cuenta {
+  font: var(--ttod-text-sm) / 1.3 var(--ttod-font-body);
+  color: var(--ttod-color-muted);
+}
+/* El rótulo del volumen, arriba a la izquierda: el mismo sitio que en la tapa,
+   para que al abrirse se vea que es el mismo libro por dentro. */
+.primera-pie {
+  position: absolute;
+  top: 1.15rem;
+  left: 1rem;
+  white-space: nowrap;
+  font: 500 var(--ttod-text-ui) / 1.2 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-muted);
+}
+
+/* La cara interior de la tapa: papel de guarda. Sólo se ve mientras el libro
+   gira, y es lo que impide que la tapa se vea «hueca» al abrirse. */
+.tapa-dentro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 1.2rem 1.1rem;
+  transform: rotateY(180deg);
+  background:
+    repeating-linear-gradient(135deg, rgb(27 23 16 / .04) 0 2px, transparent 2px 6px),
+    var(--ttod-color-surface-raised);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / .18),
+    inset 10px 0 12px -10px rgb(27 23 16 / .34);
+}
+
+/* La anteportada, escrita de arriba abajo: la cara interior de la tapa de un
+   libro cosido llevaba ahí el título. */
+.dentro-anteportada {
+  writing-mode: vertical-rl;
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: 1.15rem;
+  letter-spacing: .04em;
+  color: var(--ttod-color-ink);
+}
+.dentro-pie {
+  align-self: flex-start;
+  max-width: 100%;
+  white-space: nowrap;
+  font: var(--ttod-text-ui) / 1.3 var(--ttod-font-ui);
+  letter-spacing: .04em;
+  color: var(--ttod-color-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Detrás de la tapa cerrada hay dos hojas escritas —la primera página y la
+   cara interior—. Pintarlas ahí no las enseña a nadie y las amontona sobre el
+   rótulo de la tapa: una auditoría automática contó 146 fallos de textos que se
+   pisan y de contraste de tinta sobre tela. Mientras el libro está cerrado no
+   se pintan; al cerrarlo tardan en irse lo que tarda la tapa en taparlas. */
+/* La primera página entera, no sólo su texto: con el libro cerrado y la balda
+   cortada por arriba de la pantalla, Chrome ordenaba mal las dos caras y
+   pintaba la página encima de la tapa (se vio a 390: tapas que
+   se volvían papel en blanco). La cara interior de la tapa, igual: el
+   WebKit de prueba no respeta `backface-visibility` y la pintaba encima. */
+.libro:not([open]) .primera,
+.libro:not([open]) .primera > *,
+.libro:not([open]) .tapa-dentro,
+.libro:not([open]) .tapa-dentro > * {
+  visibility: hidden;
+  transition: visibility 0s linear 420ms;
+}
+
+/* ---------- El libro abierto ---------- */
+
+.libro[open] {
+  /* Abierto ocupa la pantalla: ya no es un lomo en la balda. */
+  flex: 1 0 100%;
+  scroll-snap-align: start;
+  perspective: 1400px;
+}
+.libro[open] .libro-abrir {
+  /* La caja reserva sitio para la tapa tumbada: así la balda no se queda con
+     scroll horizontal cuando el libro se abre. */
+  width: calc(var(--tapa-abierta) * 2 + 6px);
+}
+.libro[open] .volumen {
+  /* De frente, para que la tapa gire hacia quien mira y no de lado. */
+  transform: rotateY(0deg);
+  width: var(--tapa-abierta);
+  height: var(--alto-abierto);
+}
+.libro[open] .volumen::after {
+  /* Ya no está de pie en la balda: está abierto sobre la mesa, y la sombra
+     sale por debajo de las dos hojas. */
+  left: -2%;
+  right: -102%;
+  bottom: -10px;
+  height: 22px;
+  background: radial-gradient(52% 100% at 50% 0%, rgb(27 23 16 / .34), transparent 74%);
+}
+.libro[open] .tapa {
+  /* Abierta del todo, la tapa queda tumbada a la derecha de la página: las dos
+     hojas de un libro abierto sobre la mesa. */
+  transform: translateZ(calc(var(--grosor) / 2)) rotateY(166deg);
+}
+
+.libro-dentro {
+  /* Las hojas siguen al cosido del libro, pegadas a la primera página: el
+     filete de la izquierda es el lomo visto desde arriba. */
+  padding-top: var(--ttod-space-4);
+  animation: hojas-entran 420ms 120ms both ease-out;
+}
+
+@keyframes hojas-entran {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Las páginas: hojas cosidas, con su margen rojo a la izquierda. */
+.hojas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.hoja {
+  /* Las hojas que no se ven no se componen: al abrir el libro, maquetar las
+     diez de golpe costaba 100 ms de fotograma (freno de CPU 4x). */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 11.5rem;
+  position: relative;
+  padding: var(--ttod-space-6) var(--ttod-space-6) var(--ttod-space-4) calc(var(--ttod-space-6) + .9rem);
+  background: var(--ttod-color-surface-raised);
+  /* Un borde, no una sombra interior: pintar diez sombras al abrir el libro
+     costaba 16 ms de fotograma. */
+  border: 1px solid var(--ttod-color-line-subtle);
+}
+/* El filete de margen: la raya del papel pautado, no un adorno. */
+.hoja::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: calc(var(--ttod-space-6) + .1rem);
+  width: 1px;
+  background: color-mix(in srgb, var(--ttod-color-seal) 42%, transparent);
+}
+
+.hoja-folio {
+  display: block;
+  margin-bottom: .45rem;
+  font: var(--ttod-text-ui) / 1.2 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-muted);
+}
+
+.hoja-enlace { color: inherit; text-decoration: none; }
+.hoja-enlace:hover .hoja-texto { text-decoration: underline; text-underline-offset: 4px; }
+
+.hoja-texto {
+  display: block;
+  font-family: var(--ttod-font-body);
+  font-size: 1.22rem;
+  line-height: 1.42;
+  text-wrap: pretty;
+  hyphens: none;
+}
+
+.hoja-pie {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ttod-space-4);
+  margin-top: var(--ttod-space-4);
+  font: var(--ttod-text-ui) / 1.3 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-muted);
+}
+
+.hoja-seguir {
+  display: inline-block;
+  margin-top: var(--ttod-space-6);
+  padding: .8rem 1.1rem;
+  min-height: 44px;
+  font: 500 var(--ttod-text-sm) / 1.6 var(--ttod-font-ui);
+  color: var(--ttod-color-paper);
+  background: var(--ttod-color-ink);
+  text-decoration: none;
+}
+.hoja-seguir:hover { background: var(--ttod-color-accent); }
+
+/* ---------- Otras entradas al corpus ---------- */
+
+.armario-facetas {
+  /* El layout global pone `display:flex` a todo `main > nav`; esta no es una
+     barra de navegación en fila, son dos grupos de enlaces. */
+  display: block;
+  margin-top: var(--ttod-space-12);
+  padding-top: var(--ttod-space-6);
+  border-top: 1px solid var(--ttod-color-line-subtle);
+}
+.armario-facetas h2 {
+  margin: 0 0 var(--ttod-space-4);
+  font: 500 var(--ttod-text-ui) / 1.2 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-muted);
+}
+.facetas-grupo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .4rem 1.1rem;
+  margin: 0 0 var(--ttod-space-4);
+}
+.facetas-rotulo {
+  flex: 0 0 100%;
+  font: var(--ttod-text-ui) / 1.2 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-muted);
+}
+.facetas-grupo a {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 44px;
+  font-family: var(--ttod-font-body);
+  font-size: var(--ttod-text-base);
+  color: var(--ttod-color-ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ttod-color-line-subtle);
+}
+.facetas-grupo a:hover { border-bottom-color: var(--ttod-color-accent); }
+.facetas-grupo b {
+  font: 500 var(--ttod-text-ui) / 1 var(--ttod-font-ui);
+  color: var(--ttod-color-muted);
+}
+
+.armario-proponer {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--ttod-space-2);
+  font: 500 var(--ttod-text-sm) / 1.4 var(--ttod-font-ui);
+  color: var(--ttod-color-accent);
+}
+
+/* ---------- Pantallas grandes ---------- */
+
+@media (min-width: 60rem) {
+  .libro { --tapa-ancho: 11rem; --alto: 17rem; }
+  .libro[open] { display: grid; grid-template-columns: calc(var(--tapa-abierta) * 2 + 6px) minmax(0, 1fr); gap: var(--ttod-space-12); align-items: start; }
+  /* El libro abierto se queda mirando mientras se pasan sus páginas. */
+  .libro[open] .libro-abrir { position: sticky; top: var(--ttod-space-8); width: auto; }
+  .libro-dentro { padding-top: 0; }
+}
+
+/* ---------- Movimiento reducido ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .volumen,
+  .tapa { transition: none; }
+  .libro-dentro { animation: none; }
+  .armario-balda { scroll-behavior: auto; }
+}
+
+/* ---------- La pila: sacar uno al azar ---------- */
+
+/* El muelle de todo el armario, también para el script de la pila (lo lee de
+   la raíz para animar con la Web Animations API). */
+:root {
+  --muelle: linear(0, 0.0618, 0.2078, 0.3896, 0.5728, 0.7359, 0.8677, 0.9651, 1.0297, 1.0666, 1.0819, 1.0821, 1.0728, 1.0587, 1.0431, 1.0285, 1.0161, 1.0066, 0.9999, 0.9957, 0.9936, 0.993, 0.9935, 0.9945, 0.9958, 0.997, 0.9982);
+}
+
+.pila-libro, .lectura-libro { --tapa: #3b3222; --tapa-alta: #4b4130; --tapa-baja: #2a2318; --hilo: #c3a24e; }
+:is(.pila-libro[style*="--tono:1"], .lectura-libro[style*="--tono: 1"], .lectura-libro[style*="--tono:1"]) { --tapa: #6a4722; --tapa-alta: #7d5930; --tapa-baja: #4e3317; --hilo: #d9b663; }
+:is(.pila-libro[style*="--tono:2"], .lectura-libro[style*="--tono: 2"], .lectura-libro[style*="--tono:2"]) { --tapa: #3f5347; --tapa-alta: #4e6455; --tapa-baja: #2d3d34; --hilo: #a9bb8c; }
+:is(.pila-libro[style*="--tono:3"], .lectura-libro[style*="--tono: 3"], .lectura-libro[style*="--tono:3"]) { --tapa: #6d2b20; --tapa-alta: #813a2c; --tapa-baja: #4f1d15; --hilo: #e0a878; }
+:is(.pila-libro[style*="--tono:4"], .lectura-libro[style*="--tono: 4"], .lectura-libro[style*="--tono:4"]) { --tapa: #2f3b46; --tapa-alta: #3c4a57; --tapa-baja: #212b33; --hilo: #9fb4c2; }
+
+.mazo {
+  display: grid;
+  gap: var(--ttod-space-4);
+  margin-block: var(--ttod-space-8) var(--ttod-space-12);
+}
+.mazo-titulo, .armario-subtitulo {
+  margin: 0;
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: clamp(1.6rem, 6vw, 2.25rem);
+  line-height: 1.1;
+}
+.armario-subtitulo { margin-top: var(--ttod-space-8); }
+.mazo-intro {
+  max-width: 30em;
+  margin: var(--ttod-space-2) 0 0;
+  font-size: var(--ttod-text-base);
+  line-height: 1.5;
+  color: var(--ttod-color-muted);
+  text-wrap: pretty;
+}
+
+/* La pila entera es el botón: el blanco más grande de la página, al alcance
+   del pulgar. */
+.mazo-pila {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--ttod-space-8);
+  width: 100%;
+  padding: var(--ttod-space-6) 0 var(--ttod-space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.mazo-pila:focus-visible { outline: none; }
+.mazo-pila:focus-visible .mazo-boton { outline: 3px solid var(--ttod-color-accent); outline-offset: 4px; }
+
+.pila-escena {
+  display: block;
+  perspective: 1100px;
+  perspective-origin: 50% 0%;
+}
+.pila {
+  --ancho: min(17rem, 72vw);
+  --fondo: 10rem;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  transform-style: preserve-3d;
+  /* Vista desde arriba y un poco de lado: se ven las tapas del de arriba, los
+     lomos de todos y el canto de las hojas. */
+  transform: rotateX(-24deg) rotateY(9deg);
+  transition: transform 520ms var(--muelle);
+}
+.mazo-pila:hover .pila,
+.mazo-pila:focus-visible .pila { transform: rotateX(-27deg) rotateY(5deg) translateY(-4px); }
+.mazo-pila:active .pila { transform: rotateX(-22deg) rotateY(9deg) scale(.98); }
+
+/* Un libro tumbado: lomo delante, tapa arriba, canto de hojas a la derecha. Su
+   altura es su grosor en la estantería, reducido para que trece quepan en la
+   pantalla de un móvil. */
+.pila-libro {
+  --alto: max(22px, calc(var(--grosor) * .62));
+  position: relative;
+  display: block;
+  width: var(--ancho);
+  height: var(--alto);
+  transform-style: preserve-3d;
+  /* Ninguno queda alineado con el de abajo: los montones de verdad se tuercen. */
+  transform: translateX(calc((mod(var(--i) * 7, 5) - 2) * 4px));
+}
+.pl-cara { position: absolute; display: block; backface-visibility: hidden; }
+.pl-lomo {
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding-inline: .8rem;
+  color: #f3ead6;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .1), transparent 40%, rgb(0 0 0 / .28)),
+    var(--tapa);
+  border-radius: 2px;
+  transform: translateZ(calc(var(--fondo) / 2));
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .25);
+}
+/* Los filetes dorados del lomo, arriba y abajo, como en la estantería. */
+.pl-lomo::before {
+  content: "";
+  position: absolute;
+  inset: 3px 6px;
+  border-block: 1px solid color-mix(in srgb, var(--hilo) 55%, transparent);
+  pointer-events: none;
+}
+.pl-titulo, .pl-cuenta {
+  font: 300 12.5px/1 var(--ttod-font-titular);
+  letter-spacing: .03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pl-titulo, .pl-cuenta { color: #fbf5e8; text-shadow: 0 1px 1px rgb(0 0 0 / .45); }
+.pl-cuenta { font-family: var(--ttod-font-ui); font-weight: 600; }
+
+.pl-arriba {
+  left: 0;
+  top: 0;
+  width: var(--ancho);
+  height: var(--fondo);
+  transform-origin: top center;
+  transform: translateZ(calc(var(--fondo) / -2)) rotateX(90deg);
+  background:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / .05) 0 1px, transparent 1px 3px),
+    linear-gradient(200deg, var(--tapa-alta), var(--tapa) 55%, var(--tapa-baja));
+  border-radius: 2px 2px 6px 6px;
+}
+/* Sólo se ve la tapa del de arriba: las otras doce no se pintan (eran doce
+   texturas grandes que repintar en cada fotograma del scroll). */
+.pila-libro:not(:last-child) .pl-arriba { display: none; }
+.pl-canto {
+  top: 0;
+  right: 100%;
+  width: var(--fondo);
+  height: var(--alto);
+  transform-origin: right center;
+  transform: translateZ(calc(var(--fondo) / 2)) rotateY(-90deg);
+  background:
+    repeating-linear-gradient(0deg, rgb(27 23 16 / .14) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, #e9dfc8, #f6efe0);
+  box-shadow: inset 0 0 0 2px var(--tapa-baja);
+}
+/* La sombra del montón sobre la mesa. */
+.pila::after {
+  content: "";
+  display: block;
+  width: calc(var(--ancho) * 1.15);
+  height: 26px;
+  margin-top: -6px;
+  background: radial-gradient(50% 100% at 50% 0%, rgb(27 23 16 / .38), transparent 72%);
+  transform: translateZ(-1px);
+  order: -1;
+}
+
+.mazo-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  min-height: 52px;
+  padding: .8rem 1.5rem;
+  border-radius: 999px;
+  font: 500 var(--ttod-text-sm) / 1.2 var(--ttod-font-ui);
+  letter-spacing: .02em;
+  color: var(--ttod-color-paper);
+  background: var(--ttod-color-ink);
+  box-shadow: 0 10px 24px -14px rgb(27 23 16 / .8);
+  transition: background-color 160ms ease, transform 240ms var(--muelle);
+}
+.mazo-oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mazo-boton::before { content: "↑"; font-size: 1.05em; }
+.mazo-pila:hover .mazo-boton { background: var(--ttod-color-accent); }
+.mazo-pila:active .mazo-boton { transform: scale(.96); }
+.mazo-pila[aria-busy="true"] .mazo-boton { opacity: .7; }
+.mazo-estado:empty { display: none; }
+
+/* ---------- La lectura: el libro abierto, a pantalla completa ---------- */
+
+.lectura {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: max(.75rem, env(safe-area-inset-top)) .75rem max(.75rem, env(safe-area-inset-bottom));
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+}
+.lectura[open] { display: grid; place-items: center; }
+/* Un telón opaco y desenfocado: con el 62 % de antes la pila se veía detrás
+   del libro y parecía que asomaban volúmenes por los lados. */
+.lectura::backdrop { background: rgb(33 28 21 / .84); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.lectura[open]::backdrop { animation: telon 260ms ease-out; }
+@keyframes telon { from { opacity: 0; } }
+
+.lectura-libro {
+  position: relative;
+  width: min(100%, 34rem);
+  height: min(100%, 46rem);
+  perspective: 1400px;
+  transform-style: preserve-3d;
+  touch-action: none;
+  /* Capa propia: el vuelo mueve una textura ya pintada, no la repinta. */
+  will-change: transform, opacity;
+}
+
+.lectura-hoja {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1.75rem 1rem 2.4rem;
+  overflow-y: auto;
+  color: var(--ttod-color-ink);
+  background:
+    linear-gradient(260deg, rgb(27 23 16 / .12), transparent 6%),
+    var(--ttod-color-surface-raised);
+  border-radius: 10px 4px 4px 10px;
+  /* El lomo del volumen del que salió, en su color y a la DERECHA, como en la
+     estantería y en la tapa que gira sobre él: es un libro cosido a la china
+     (xianzhuang), que se abre de derecha a izquierda. */
+  border-right: 10px solid var(--tapa);
+  /* El canto de las hojas que quedan debajo, por el borde de fuera (el
+     izquierdo: el de la derecha es el cosido). */
+  box-shadow:
+    -3px 2px 0 -1px #efe7d6,
+    -6px 4px 0 -2px #e5dcc8,
+    -9px 6px 0 -3px #ddd2bb,
+    0 30px 60px -30px rgb(0 0 0 / .7);
+}
+/* La raya roja del margen, la misma que en las hojas de la estantería. */
+.lectura-hoja::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 1.5rem;
+  width: 1px;
+  background: color-mix(in srgb, var(--ttod-color-seal) 42%, transparent);
+}
+
+.lectura-volumen, .lectura-folio, .lectura-pie, .lectura-pista {
+  margin: 0;
+  font: var(--ttod-text-ui) / 1.3 var(--ttod-font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--ttod-tracking-ui);
+  color: var(--ttod-color-muted);
+}
+.lectura-volumen { color: var(--ttod-color-ink); font-weight: 500; }
+.lectura-folio { margin-top: .35rem; }
+
+.lectura-texto {
+  margin: auto 0;
+  padding-block: var(--ttod-space-6);
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: clamp(1.55rem, 6.4vw, 2.2rem);
+  line-height: 1.22;
+  text-wrap: pretty;
+  hyphens: none;
+}
+.lectura-procedencia {
+  margin: .4rem 0 0;
+  font: var(--ttod-text-sm) / 1.4 var(--ttod-font-ui);
+  color: var(--ttod-color-muted);
+  overflow-wrap: anywhere;
+}
+.lectura-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.25rem;
+  margin: var(--ttod-space-2) 0 0;
+}
+.lectura-enlaces a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font: 500 var(--ttod-text-sm) / 1.3 var(--ttod-font-ui);
+  color: var(--ttod-color-accent);
+  text-underline-offset: 4px;
+}
+/* Las dos acciones abajo, donde llega el pulgar. */
+.lectura-acciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .6rem;
+  margin-top: var(--ttod-space-4);
+}
+.lectura-acciones button {
+  min-height: 48px;
+  border-radius: 999px;
+  font: 500 var(--ttod-text-sm) / 1.2 var(--ttod-font-ui);
+  cursor: pointer;
+}
+.lectura-otra { color: var(--ttod-color-paper); background: var(--ttod-color-ink); border: 0; }
+.lectura-otra:hover { background: var(--ttod-color-accent); }
+.lectura-cerrar { color: var(--ttod-color-ink); background: transparent; border: 1px solid var(--ttod-color-ink); }
+.lectura-cerrar:hover { background: rgb(33 28 21 / .06); }
+.lectura :focus-visible { outline: 3px solid var(--ttod-color-accent); outline-offset: 3px; }
+.lectura-pista { margin-top: .6rem; text-align: center; font-size: 12px; }
+@media (hover: hover) and (pointer: fine) { .lectura-pista { display: none; } }
+
+/* La tapa: cubre la hoja y gira sobre el lomo (a la derecha, como en la
+   estantería y como la franja del lomo de la hoja) hasta tumbarse fuera de
+   la pantalla por la derecha. Abre y cierra por la misma bisagra. */
+.lectura-tapa {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: .4rem;
+  padding: 2rem 1.75rem 2.25rem;
+  color: #f3ead6;
+  border-radius: 10px 4px 4px 10px;
+  background:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / .05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / .07) 0 1px, transparent 1px 3px),
+    linear-gradient(215deg, var(--tapa-alta), var(--tapa) 46%, var(--tapa-baja));
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .3), 0 30px 60px -30px rgb(0 0 0 / .7);
+  transform-origin: right center;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+.lectura-tapa[hidden] { display: none; }
+/* El cosido: cuatro puntadas de hilo junto al lomo, que dan la vuelta al
+   canto. Va en el libro y no en la tapa: se ve sobre la tapa cerrada y sigue
+   ahí, sobre el lomo de la hoja, cuando la tapa se ha ido. En 3D queda detrás
+   de la tapa mientras gira, como en un libro de verdad. */
+.lectura-libro::after {
+  content: "";
+  position: absolute;
+  top: 7%;
+  bottom: 7%;
+  right: 0;
+  width: 10px;
+  pointer-events: none;
+  background:
+    /* Cada puntada: el agujero, cosido en el lomo. */
+    radial-gradient(circle at 4px 50%, rgb(0 0 0 / .55) 0 1.6px, var(--hilo) 1.8px 2.8px, transparent 3px) left top / 100% 25% repeat-y,
+    /* El hilo que abraza el canto. */
+    linear-gradient(transparent calc(50% - 1px), var(--hilo) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)) right top / 6px 25% repeat-y,
+    /* El hilo que corre de puntada a puntada. */
+    linear-gradient(90deg, transparent 3px, var(--hilo) 3px 5px, transparent 5px) left center / 8px 75% no-repeat;
+}
+.lectura-tapa::before {
+  content: "";
+  position: absolute;
+  inset: .8rem;
+  border: 1px solid color-mix(in srgb, var(--hilo) 62%, transparent);
+  pointer-events: none;
+}
+.lt-rotulo { font: 500 var(--ttod-text-ui) / 1 var(--ttod-font-ui); text-transform: uppercase; letter-spacing: var(--ttod-tracking-ui); color: #ecdcb4; }
+.lt-titulo { font: 300 clamp(2rem, 9vw, 3rem) / 1.05 var(--ttod-font-titular); text-wrap: balance; }
+.lt-cuenta { font: var(--ttod-text-sm) / 1.3 var(--ttod-font-ui); color: #e6dcc6; }
+
+@media (min-width: 60rem) {
+  .mazo { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; column-gap: var(--ttod-space-12); }
+  .mazo-estado { grid-column: 1 / -1; }
+}
+
+@media (min-width: 48rem) {
+  .lectura-hoja { padding: 2.5rem 2.5rem 1.75rem 3.5rem; }
+  .lectura-hoja::before { left: 2.4rem; }
+  .lectura-libro { height: min(100%, 44rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pila, .mazo-boton { transition: none; }
+  .lectura[open]::backdrop { animation: none; }
+}
+
+/* ---------- Sobre la pintura: folios y letra del oráculo ---------- */
+/* Las mismas fuentes y animaciones en toda la página, enseñadas como en el
+   oráculo. El texto que cae sobre la pintura va en
+   un folio de papel opaco, con el arco de retablo del oráculo arriba; los
+   títulos, en la misma cursiva de Gambetta, y se entintan con GSAP
+   (`estilo/letras.ts`). */
+/* El fondo-pintura va en la capa 0; todo lo de la vista, por encima. */
+.armario-vista > :not(.fe-escena) { position: relative; z-index: 1; }
+.armario-vista .ttod-breadcrumbs > * { margin: 0; }
+.armario-vista .ttod-breadcrumbs {
+  display: inline-flex;
+  align-items: center;
+  padding: .35rem .9rem;
+  border-radius: 999px;
+  background: rgb(251 248 241 / .92);
+  box-shadow: 0 .25rem 1rem #5b4a3014;
+}
+.armario-entrada {
+  position: relative;
+  box-sizing: border-box;
+  max-width: 40rem;
+  margin: var(--ttod-space-12) auto var(--ttod-space-8);
+  padding: 3.25rem clamp(1.25rem, 5vw, 2.75rem) 2rem;
+  text-align: center;
+  background: radial-gradient(120% 60% at 50% 0%, #fbf8f1 55%, #f6efdf 100%);
+  border: 1px solid #dccfb3;
+  border-radius: 50% 50% 1.5rem 1.5rem / 4.5rem 4.5rem 1.5rem 1.5rem;
+  box-shadow: 0 2.5rem 5rem #5b4a3026, 0 .25rem 1rem #5b4a3014;
+}
+.armario-titulo,
+.mazo-titulo,
+.armario-subtitulo {
+  font-family: var(--ttod-font-body);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -.01em;
+}
+.armario-titulo { font-size: clamp(2.6rem, 10vw, 4.25rem); line-height: 1; margin-bottom: 0; }
+/* El filete con el rombo rubricado del oráculo, bajo el título. */
+.armario-titulo::after {
+  content: '';
+  display: block;
+  width: 9rem;
+  height: .5rem;
+  margin: 1.2rem auto 1.3rem;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0L10 5L5 10L0 5Z' fill='%23a5321f'/%3E%3C/svg%3E") center / .5rem .5rem no-repeat,
+    linear-gradient(#dccfb3, #dccfb3) left center / calc(50% - .6rem) 1px no-repeat,
+    linear-gradient(#dccfb3, #dccfb3) right center / calc(50% - .6rem) 1px no-repeat;
+}
+.armario-intro { margin-inline: auto; color: #5e523f; }
+.armario-recuento { color: #a5321f; }
+
+/* El texto de la pila, en su folio: la pintura sigue detrás. */
+.mazo-texto {
+  box-sizing: border-box;
+  padding: 1.5rem clamp(1.25rem, 4vw, 2rem);
+  background: radial-gradient(120% 80% at 50% 0%, #fbf8f1 55%, #f6efdf 100%);
+  border: 1px solid #dccfb3;
+  border-radius: 1.5rem;
+  box-shadow: 0 1.5rem 3rem #5b4a301f;
+}
+.mazo-intro { color: #5e523f; }
+/* La pila se apoya en el papel de la pintura: sombra más cálida y más ancha. */
+.pila::after { background: radial-gradient(50% 100% at 50% 0%, rgb(60 44 24 / .42), transparent 72%); }
+
+.armario-credito {
+  max-width: 60ch;
+  margin: var(--ttod-space-8) 0 var(--ttod-space-12);
+  padding-top: var(--ttod-space-3);
+  border-top: 1px solid #d3c6aa;
+  font: .9375rem / 1.45 var(--ttod-font-ui);
+  color: #5e523f;
+}
+
+/* Los libros de la balda se posan uno tras otro al llegar (la clase la pone
+   el guion con un IntersectionObserver; la animación la lleva el compositor). */
+.armario-balda[data-llega] .libro { animation: libro-llega .5s cubic-bezier(.3, 1.5, .5, 1) backwards; }
+.armario-balda[data-llega] .libro:nth-child(2) { animation-delay: 40ms; }
+.armario-balda[data-llega] .libro:nth-child(3) { animation-delay: 80ms; }
+.armario-balda[data-llega] .libro:nth-child(4) { animation-delay: 120ms; }
+.armario-balda[data-llega] .libro:nth-child(5) { animation-delay: 160ms; }
+.armario-balda[data-llega] .libro:nth-child(6) { animation-delay: 200ms; }
+.armario-balda[data-llega] .libro:nth-child(n+7) { animation-delay: 240ms; }
+@keyframes libro-llega { from { transform: translateY(30px); } }
+@media (prefers-reduced-motion: reduce) { .armario-balda[data-llega] .libro { animation: none; } }
+/* En Sabiduría las nubes no sobresalen por el canto: la página no se puede
+   desplazar en horizontal. */
+.armario-vista .nube-ruyi { inset-inline-end: 0; max-width: 100%; }

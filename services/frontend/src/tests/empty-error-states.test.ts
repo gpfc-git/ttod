@@ -52,11 +52,17 @@ describe('empty and error states never leave a blank page or a stack trace', () 
     expect(main.querySelector('.ttod-empty')?.getAttribute('role')).toBe('alert');
   });
 
-  it('index: real data renders exactly as before (no regression)', async () => {
+  // El corpus ya no se pinta en tarjetas: cada aforismo es una estela y su
+  // texto grabado es lo más grande de la losa.
+  it('index: real data renders the aphorism carved on its stele', async () => {
     mockFetchOk([entry]);
     const main = await render(IndexRoute, '/en/wisdom/', { locale: 'en' });
     expect(main.querySelector('.ttod-empty')).toBeNull();
-    expect(main.querySelector('article.ttod-card blockquote')?.textContent).toBe(entry.text);
+    // La estela de la entrada escribe el aforismo palabra a palabra (cada una
+    // en su `<span>`, para la tinta), así que en el HTML hay saltos de línea
+    // entre ellas que el navegador colapsa. Se compara el texto colapsado.
+    const grabado = main.querySelector('.hoja .hoja-texto')?.textContent?.replace(/\s+/g, ' ').trim();
+    expect(grabado).toBe(entry.text);
   });
 
   it('detail: unknown slug -> "not found" state (not the generic empty copy) with a back link', async () => {

@@ -21,7 +21,12 @@ vi.mock('framer-motion', async () => {
     const { children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } = props;
     return React.createElement('div', { ...rest, ref }, children as React.ReactNode);
   });
-  return { AnimatePresence: ({ children }: { children: React.ReactNode }) => children, motion: { div: component, article: component }, useReducedMotion: () => true };
+  const passThrough = ({ children }: { children: React.ReactNode }) => children;
+  return {
+    AnimatePresence: passThrough, LazyMotion: passThrough, domAnimation: {},
+    motion: { div: component, article: component }, m: { div: component, article: component },
+    useReducedMotion: () => true,
+  };
 });
 
 function sseResponse(chunks: unknown[]): Response {
@@ -390,5 +395,27 @@ describe('OracleTerminal test coverage (Task 7)', () => {
     // (it is otherwise disabled only because submitting cleared the textarea).
     fireEvent.change(screen.getByPlaceholderText(/practice question/), { target: { value: 'Again?' } });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Ask' })).not.toBeDisabled());
+  });
+});
+
+describe('OracleTerminal open and close', () => {
+  afterEach(() => cleanup());
+  beforeEach(() => vi.clearAllMocks());
+
+  it('closes on Escape from inside the oracle and returns focus to the toggle', () => {
+    render(<OracleTerminal locale="en" />);
+    const input = screen.getByPlaceholderText(/practice question/);
+    input.focus();
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    const toggle = screen.getByRole('button', { name: 'Open oracle' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
+  });
+
+  it('ignores Escape pressed elsewhere on the page', () => {
+    render(<OracleTerminal locale="en" />);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Close oracle' })).toHaveAttribute('aria-expanded', 'true');
   });
 });

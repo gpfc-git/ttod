@@ -1,14 +1,15 @@
-# Cohort PR scorecard — updated 2026-10-15 (pre-defense)
+# Cohort PR scorecard — updated 2026-10-17 (post-defense PR close-out)
 
 **Audience:** instructor only (not published under `docs/public/`).
 **Rubric:** §5 — C25 · A25 · T20 · X10 · CI10 · P10 = 100.
 **Evidence pack:** [`pr-status-2026-10-11/`](./pr-status-2026-10-11/INDEX.md) (archive; live gates below).
-**Mail draft:** [`MAIL-PENDIENTES-DEFENSA-2026-10-15.es.md`](./MAIL-PENDIENTES-DEFENSA-2026-10-15.es.md).
+**Mail draft:** [`MAIL-PENDIENTES-DEFENSA-2026-10-15.es.md`](./MAIL-PENDIENTES-DEFENSA-2026-10-15.es.md) (historical).  
+**AI-critical usage (instructor):** [`ai-critical-usage-2026-10-25/index.html`](./ai-critical-usage-2026-10-25/index.html) · [`AI-CRITICAL-USAGE-CONCLUSIONS-2026-10-25.md`](./AI-CRITICAL-USAGE-CONCLUSIONS-2026-10-25.md).
 
-**Snapshot:** 3 student PRs open (Content #65 → #67 → #68). Maintainer #9 merged.  
-**Complete seams (product):** PWA · Accounts · **Oracle** · Graph Tasks 1–8.  
-**Instructor waiver (2026-10-15, class):** **not required** — (a) formal review of another team's PR, and (b) PR / commits into another team's module. See waiver rows. Already-delivered cross-module tips (e.g. Graph #78) keep their scores.  
-**Still owed (student):** Content #65/#67/#68 amends · Graph Task 10 (design-decision doc, if no memo). Design-decision Task 10 for E3/E4/E5 if not evidenced.
+**Snapshot:** **0** student tip PRs open. Content #65/#67/#68 merged 2026-10-15.  
+**Complete seams (product):** Content Tasks 1–6 · Graph Tasks 1–8 · Oracle · PWA · Accounts.  
+**Instructor waiver (2026-10-15, class):** **not required** — (a) formal review of another team's PR, and (b) PR / commits into another team's module. Already-delivered cross-module tips (Graph #78) keep their scores.  
+**No tip PR for design-decision Task 10** (Graph / Oracle / PWA / Accounts) — Content T9 shipped as #68. Oral-only memos (if any) are outside this PR matrix.
 
 ---
 
@@ -16,11 +17,11 @@
 
 | Group | Seam | Authors | Open stack |
 | --- | --- | --- | --- |
-| E1 | Content | `gontugithub` | #61✓→#62✓→#63✓→#64✓→**#65**→**#67**→**#68** · Tasks 7–8 **WAIVED** (#43 merged) |
-| E2 | Graph | `gpfc-git` | #48✓→…→#78✓ · Task 8 done (also waiver class) · Task 9 **WAIVED** · Task 10 pending |
-| E3 | Oracle | `Andreavilaro0` / fork `nbfrodri/ttod_team3` | **complete** product (#42) · Tasks 8–9 **WAIVED** |
-| E4 | PWA | `PRNovoa` | **complete** (+ #74) · Tasks 8–9 **WAIVED** |
-| E5 | Accounts | `alexxblaro16` / `Gonsiii11` on #58 | **complete** · Tasks 8–9 **WAIVED** |
+| E1 | Content | `gontugithub` | #43✓→#61✓→…→#68✓ · Tasks 7–8 **WAIVED** · **seam tip PRs complete** |
+| E2 | Graph | `gpfc-git` | #48✓→…→#78✓ · Task 9 **WAIVED** · Task 10 no tip PR |
+| E3 | Oracle | `Andreavilaro0` / fork `nbfrodri/ttod_team3` | **complete** product (#42) · Tasks 8–9 **WAIVED** · Task 10 no tip PR |
+| E4 | PWA | `PRNovoa` | **complete** (+ #74) · Tasks 8–9 **WAIVED** · Task 10 no tip PR |
+| E5 | Accounts | `alexxblaro16` / `Gonsiii11` on #58 | **complete** · Tasks 8–9 **WAIVED** · Task 10 no tip PR |
 
 ✓ = already **MERGED**.
 
@@ -35,9 +36,9 @@
 | E1 | [#62](https://github.com/ruvebal/ttod/pull/62) **MERGED** 2026-10-12 | content-task2 · `content-task2-breadcrumbs` | 24 | 25 | 20 | 10 | 10 | 9 | **98** | MERGED; Breadcrumbs + copy.notFound | — |
 | E1 | [#63](https://github.com/ruvebal/ttod/pull/63) **MERGED** 2026-10-11 | content-task3 · `content-task3-empty-error-states` | 25 | 25 | 20 | 9 | 10 | 9 | **98** | MERGED; EmptyState+loadWisdom+tests | — |
 | E1 | [#64](https://github.com/ruvebal/ttod/pull/64) **MERGED** 2026-10-11 | content-task4 · `content-task4-propose-form` | 25 | 25 | 20 | 10 | 10 | 9 | **99** | MERGED; propose form a11y+gate | — |
-| E1 | [#65](https://github.com/ruvebal/ttod/pull/65) **CHANGES_REQUESTED** | content-task5 · `content-task5-provenance` | — | — | — | — | — | — | — | AMEND: provenance on all surfaces | `CHANGES_REQUESTED` |
-| E1 | [#67](https://github.com/ruvebal/ttod/pull/67) **CHANGES_REQUESTED** | content-task6 · `content-task6-content-tests` | — | — | — | — | — | — | — | AMEND: propose-form component test | `CHANGES_REQUESTED` |
-| E1 | [#68](https://github.com/ruvebal/ttod/pull/68) **CHANGES_REQUESTED** | content-task9 · `content-task9-design-decision` | — | — | — | — | — | — | — | AMEND: design-decision tip alignment | `CHANGES_REQUESTED` |
+| E1 | [#65](https://github.com/ruvebal/ttod/pull/65) **MERGED** 2026-10-15 | content-task5 · `content-task5-provenance` | 24 | 25 | 20 | 10 | 10 | 9 | **98** | MERGED post-amend; ProvenanceBlock on index/facets/detail + tests | — |
+| E1 | [#67](https://github.com/ruvebal/ttod/pull/67) **MERGED** 2026-10-15 | content-task6 · `content-task6-content-tests` | 24 | 24 | 20 | 10 | 10 | 9 | **97** | MERGED post-amend; ProposeForm component test + frequencies() | — |
+| E1 | [#68](https://github.com/ruvebal/ttod/pull/68) **MERGED** 2026-10-15 | content-task9 · `content-task9-design-decision` | 24 | 24 | 18 | 10 | 10 | 9 | **95** | MERGED post-amend; `DECISION-T9-error-handling.md` aligned to this tip | — |
 | E1 | — **WAIVED** 2026-10-15 | content-task8 · formal review of another team's PR | — | — | — | — | — | — | — | Instructor: not required (class waiver) | — |
 | E1 | — **WAIVED** 2026-10-15 | content-task7 · PR into a module you don't own | — | — | — | — | — | — | — | Instructor: not required (class waiver — no cross-team commits) | — |
 | E2 | [#48](https://github.com/ruvebal/ttod/pull/48) **MERGED** 2026-10-08 | graph-task1 · `graph-task1-fetch-from-api` | 25 | 24 | 20 | 10 | 10 | 9 | **98** | MERGED | — |
@@ -49,7 +50,7 @@
 | E2 | [#77](https://github.com/ruvebal/ttod/pull/77) **MERGED** 2026-10-15 | graph-task7 · `graph-task7-graph-island-tests` | 24 | 24 | 20 | 10 | 10 | 9 | **97** | MERGED; GraphIsland component test (+ early index tag pills) | — |
 | E2 | [#78](https://github.com/ruvebal/ttod/pull/78) **MERGED** 2026-10-15 | graph-task8 · `graph-task8-pr-into-different-module` | 24 | 24 | 18 | 9 | 10 | 9 | **94** | MERGED; related-wisdom links on detail (cross-module) | — |
 | E2 | — **WAIVED** 2026-10-15 | graph-task9 · formal review of another team's PR | — | — | — | — | — | — | — | Instructor: not required (class waiver) | — |
-| E2 | — **PENDING** | graph-task10 · design-decision doc for defense | — | — | — | — | — | — | — | No tip PR / memo found | — |
+| E2 | — **NO TIP PR** | graph-task10 · design-decision doc for defense | — | — | — | — | — | — | — | No tip PR filed (oral-only if any) | — |
 | E3 | [#44](https://github.com/ruvebal/ttod/pull/44) **CLOSED** 2026-10-13 | oracle-task1 · `oracle-task1-streamed-response-rendering` | 24 | 24 | 18 | 9 | 10 | 8 | **93** | CLOSED superseded by #42 (Task 1 on main via cumulative) | — |
 | E3 | [#45](https://github.com/ruvebal/ttod/pull/45) **CLOSED** 2026-10-13 | oracle-task2 · `oracle-task2-live-region-announcement` | 24 | 24 | 18 | 10 | 10 | 8 | **94** | CLOSED superseded by #42 | — |
 | E3 | [#38](https://github.com/ruvebal/ttod/pull/38) **CLOSED** 2026-10-13 | oracle-task3 · `oracle-task3-grounded-creative-disclosure` | 24 | 24 | 18 | 10 | 10 | 8 | **94** | CLOSED superseded by #42 | — |
@@ -87,19 +88,17 @@
 
 | Group | Scored n | Mean Σ | Median Σ | Notes |
 | --- | ---: | ---: | ---: | --- |
-| E1 Content | 5 | 96 | 98 | #61–#64 merged; #65/#67/#68 AMEND; Tasks 7–8 waived |
-| E2 Graph | 8 | 96 | 95 | Tasks 1–8 merged (#78 scored); Task 9 waived; Task 10 pending |
-| E3 Oracle | 7 | 94 | 93 | **seam complete** (#42); Tasks 8–9 waived |
-| E4 PWA | 8 | 96 | 96 | **seam complete** (+ #74); Tasks 8–9 waived |
-| E5 Accounts | 7 | 92 | 92 | **seam complete**; Tasks 8–9 waived |
+| E1 Content | 8 | 96 | 98 | #43+#61–#68 merged; Tasks 7–8 waived |
+| E2 Graph | 8 | 96 | 95 | Tasks 1–8 merged (#78 scored); Task 9 waived; Task 10 no tip PR |
+| E3 Oracle | 7 | 94 | 93 | **seam complete** (#42); Tasks 8–9 waived; Task 10 no tip PR |
+| E4 PWA | 8 | 96 | 96 | **seam complete** (+ #74); Tasks 8–9 waived; Task 10 no tip PR |
+| E5 Accounts | 7 | 92 | 92 | **seam complete**; Tasks 8–9 waived; Task 10 no tip PR |
 
 ---
 
-## Merge order / remaining student work
+## Remaining (non-PR)
 
-1. **Content:** #65 → #67 → #68 (amends only)  
-2. **Graph:** Task 10 design-decision doc if no memo yet  
-3. **Oracle / Accounts / PWA:** product done; cross-team review + cross-team commit tips waived; Task 10 memo if not evidenced  
+All student tip PRs that were filed are merged. Design-decision Task 10 for Graph / Oracle / PWA / Accounts has **no tip PR** in this repo (Content T9 = #68). Waived process tips stay waived.
 
 Instructor Update branch / conflict resolve is merge hygiene — not a student reject reason.
 
@@ -124,4 +123,4 @@ Per-task PRs #44/#45/#38/#39/#40/#41 looked unmergeable (`DIRTY` / `CHANGES_REQU
 
 [`COHORT-PR-SCORECARD-2026-10-07.csv`](./COHORT-PR-SCORECARD-2026-10-07.csv) (rewritten same snapshot).
 
-_Updated: 2026-10-15 pre-defense (formal-review + cross-team-commit tips waived; #9 merged)._
+_Updated: 2026-10-17 — Content #65/#67/#68 scored MERGED; 0 open student tip PRs._

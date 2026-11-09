@@ -1,0 +1,565 @@
+/* El bosque de estelas — vista `/wisdom` y sus tres facetas.
+   Concepto: el Bosque de Estelas (Beilin) de Xi'an.
+   Estructura de lectura (una puerta de filtro cerrada, recuento en texto llano,
+   filas separadas): Poetry Foundation.
+
+   Nada de esto necesita JavaScript: el filtro es un <details> nativo, el orden
+   es un <form method=get> y la profundidad del pasillo es una animación de
+   scroll de CSS que, donde no existe, deja las estelas de frente. */
+
+.bosque {
+  /* Más ancho que la columna de lectura por defecto (48rem): el pasillo de
+     1440 pone estelas a los dos lados del camino. */
+  max-width: 74rem;
+  /* El `main` global no trae relleno arriba y la pastilla de la cabecera se
+     comía la ruta de navegación. */
+  padding-top: var(--ttod-space-8);
+}
+
+/* ---------- La entrada del bosque ---------- */
+
+.bosque-entrada {
+  margin-block: var(--ttod-space-8) var(--ttod-space-12);
+}
+
+.bosque-titulo {
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: var(--ttod-text-display);
+  line-height: 1.02;
+  margin: 0 0 var(--ttod-space-6);
+  /* Ni palabra partida ni huérfana: el navegador reparte las líneas mirando
+     el párrafo entero, y nunca corta una palabra por la mitad. */
+  text-wrap: pretty;
+  hyphens: none;
+}
+
+.bosque-intro {
+  max-width: 30em;
+  margin: 0 0 var(--ttod-space-6);
+  font-size: var(--ttod-text-base);
+  line-height: 1.5;
+  color: var(--ttod-color-muted);
+  text-wrap: pretty;
+  hyphens: none;
+}
+
+/* El tamaño del corpus se dice en texto llano, no se esconde: las cifras de la
+   página tienen que poder explicarse. */
+.bosque-recuento {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ttod-space-2) var(--ttod-space-4);
+  margin: 0;
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-sm);
+  color: var(--ttod-color-ink);
+}
+
+.bosque-recuento b {
+  font-weight: 500;
+  letter-spacing: var(--ttod-tracking-ui);
+  text-transform: uppercase;
+  font-size: var(--ttod-text-ui);
+  color: var(--ttod-color-seal);
+}
+
+/* ---------- Los mandos: una sola puerta, y el orden ---------- */
+
+.bosque-mandos {
+  display: grid;
+  gap: var(--ttod-space-4);
+  margin-bottom: var(--ttod-space-12);
+  border-block: 1px solid var(--ttod-color-line-subtle);
+  padding-block: var(--ttod-space-2);
+}
+
+.puerta summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ttod-space-4);
+  min-height: 44px;
+  padding-block: var(--ttod-space-2);
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-ui);
+  letter-spacing: var(--ttod-tracking-ui);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.puerta summary::-webkit-details-marker { display: none; }
+
+/* El signo es un aspa girada: abierto, el «+» se vuelve «×» en los mismos
+   200 ms que tarda la puerta. Dos filetes, no un icono dibujado. */
+.puerta-signo {
+  position: relative;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  transition: transform .2s cubic-bezier(.2, .7, .2, 1);
+}
+.puerta-signo::before,
+.puerta-signo::after {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1.5px;
+  background: currentColor;
+  transform: translateY(-50%);
+}
+.puerta-signo::after { transform: translateY(-50%) rotate(90deg); }
+.puerta[open] .puerta-signo { transform: rotate(45deg); }
+
+.puerta-ayuda {
+  margin: 0 0 var(--ttod-space-6);
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-sm);
+  color: var(--ttod-color-muted);
+}
+
+.puerta-dentro {
+  display: grid;
+  gap: var(--ttod-space-8);
+  padding-block: var(--ttod-space-4) var(--ttod-space-6);
+}
+@media (min-width: 52rem) {
+  .puerta-dentro { grid-template-columns: repeat(3, 1fr); gap: var(--ttod-space-8); align-items: start; }
+}
+
+/* La altura se anima sola, sin JS y sin medir píxeles. Donde el navegador no
+   conoce `::details-content`, la puerta abre y cierra de golpe: el contenido
+   es el mismo. */
+@supports selector(::details-content) {
+  .puerta::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition: block-size .2s cubic-bezier(.2, .7, .2, 1), content-visibility .2s allow-discrete;
+  }
+  .puerta[open]::details-content { block-size: auto; }
+}
+
+.faceta-grupo h2,
+.faceta-grupo h3 {
+  margin: 0 0 var(--ttod-space-2);
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-ui);
+  letter-spacing: var(--ttod-tracking-ui);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ttod-color-seal);
+}
+.faceta-grupo p {
+  margin: 0 0 var(--ttod-space-2);
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-sm);
+  color: var(--ttod-color-muted);
+}
+
+/* Las facetas son filas con filete, no una nube de píldoras: cada una dice su
+   nombre a la izquierda y cuántas estelas tiene a la derecha. */
+.faceta-lista { list-style: none; margin: 0; padding: 0; }
+.faceta-lista li + li { border-top: 1px solid var(--ttod-color-line-subtle); }
+.faceta-lista a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ttod-space-4);
+  min-height: 44px;
+  padding-block: var(--ttod-space-2);
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-sm);
+}
+.faceta-lista a:hover { color: var(--ttod-color-seal); }
+.faceta-lista a[aria-current="page"] { color: var(--ttod-color-seal); font-weight: 600; }
+.faceta-lista a[aria-current="page"] .faceta-nombre { text-decoration: underline; text-underline-offset: 4px; }
+.faceta-cuenta { flex: none; color: var(--ttod-color-muted); font-variant-numeric: tabular-nums; }
+
+.orden {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ttod-space-2) var(--ttod-space-3);
+  padding-block: var(--ttod-space-2);
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-ui);
+}
+.orden label { width: 100%; letter-spacing: var(--ttod-tracking-ui); text-transform: uppercase; font-weight: 500; }
+@media (min-width: 34rem) { .orden label { width: auto; } }
+.orden select {
+  flex: 1 1 11rem;
+  min-height: 44px;
+  padding: 0 var(--ttod-space-3);
+  border: 1px solid var(--ttod-color-line);
+  border-radius: var(--ttod-radius-sm);
+  background: var(--ttod-color-surface-raised);
+  color: var(--ttod-color-ink);
+  font: inherit;
+  font-size: var(--ttod-text-sm);
+}
+.orden button {
+  min-height: 44px;
+  padding: 0 var(--ttod-space-4);
+  border: 1px solid var(--ttod-color-ink);
+  border-radius: 999px;
+  background: var(--ttod-color-ink);
+  color: var(--ttod-color-paper);
+  font: inherit;
+  font-size: var(--ttod-text-ui);
+  letter-spacing: var(--ttod-tracking-ui);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* ---------- La piedra ---------- */
+
+.piedra {
+  position: relative;
+  isolation: isolate;
+  /* Una estela está de pie: es más alta que ancha. Lo que la distingue de una
+     lápida no es el canto redondeado, es la proporción vertical y la banda
+     grabada de la cabeza (碑额), donde va escrito de qué habla la piedra. */
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(19rem, 48vh, 24rem);
+  padding: var(--ttod-space-8) clamp(1.1rem, 4.5vw, 2rem) var(--ttod-space-6);
+  /* La cabeza redondeada del 碑: la silueta es lo que la hace estela y no
+     tarjeta. Formas curvas, no un rectángulo más. */
+  border-radius: 48% 48% 4px 4px / 11% 11% 1% 1%;
+  background-color: #e4dcc6;
+  background-image:
+    url("/visual-system/estelas/grano-piedra.webp"),
+    linear-gradient(168deg, #efe8d6 0%, #e4dcc6 46%, #d7cbae 100%);
+  background-size: 200px 200px, auto;
+  /* El relieve, sin desenfoques grandes: la piedra se inclina con el scroll y
+     el navegador la vuelve a pintar en cada fotograma, así que una sombra de
+     26 px de difuminado se paga veinte veces por segundo (medido a 390 con el
+     freno 4×: hasta 100 ms de fotograma). El filo de luz de arriba y la banda
+     de sombra del canto derecho son planos; abajo queda una sombra corta que
+     la separa del papel. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .5),
+    inset -3px 0 0 -2px rgb(27 23 16 / .14),
+    0 6px 10px -9px rgb(27 23 16 / .7);
+}
+
+/* El marco grabado por dentro (碑框): una línea hundida, no un borde. */
+.piedra::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgb(27 23 16 / .16);
+  border-radius: 48% 48% 3px 3px / 10% 10% 1% 1%;
+  pointer-events: none;
+}
+
+/* El zócalo donde la estela se apoya: sobresale a los dos lados. */
+.piedra::after {
+  content: "";
+  position: absolute;
+  inset: auto clamp(-14px, -3vw, -8px) -11px;
+  height: 11px;
+  border-radius: 2px 2px 3px 3px;
+  background: linear-gradient(180deg, #d7cbae, #bfb092);
+  box-shadow: 0 10px 18px -14px rgb(27 23 16 / .8);
+}
+
+/* La banda de la cabeza: una línea hundida separa el rótulo del grabado. */
+.piedra-cabeza {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ttod-space-4);
+  margin-bottom: var(--ttod-space-6);
+  padding-bottom: var(--ttod-space-3);
+  border-bottom: 1px solid rgb(27 23 16 / .2);
+  box-shadow: 0 1px 0 rgb(255 255 255 / .5);
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-ui);
+  letter-spacing: var(--ttod-tracking-ui);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* El folio y el nombre de la sección van grabados en la propia piedra, como el
+   rótulo de la sala va pintado en la pared de la referencia; nunca en una
+   píldora flotante encima. */
+.piedra-folio {
+  color: #4f4535;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgb(255 255 255 / .55);
+}
+/* 48 px y no 44: la piedra se inclina con el scroll, y una caja inclinada
+   mide menos de lo que pide. Medido a 390: con `translateZ(-40px)` sobre
+   `perspective(1200px)` el enlace de 44 px llegaba al dedo como 42. */
+.piedra-seccion {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-block: -14px;
+  color: var(--ttod-color-seal);
+  text-decoration: none;
+  text-align: end;
+  text-shadow: 0 1px 0 rgb(255 255 255 / .5);
+}
+.piedra-seccion:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+/* Toda la losa escrita es el enlace: en un teléfono no se acierta en «img-001».
+   Ocupa el hueco de la piedra, así que el grabado queda en su centro óptico. */
+.piedra-enlace { flex: 1; display: flex; align-items: center; color: inherit; text-decoration: none; }
+
+/* El aforismo es lo más grande de su estela: eso es toda la jerarquía. */
+.piedra-texto {
+  display: block;
+  margin: 0;
+  color: var(--ttod-color-ink);
+  font-family: var(--ttod-font-body);
+  /* Light y no Regular: es el corte de Gambetta que la cabecera ya precarga,
+     así que el grabado no cambia de forma a mitad de carga (el salto de
+     composición que se medía al llegar la fuente). */
+  font-weight: 300;
+  font-size: clamp(1.25rem, 4.9vw, 1.6rem);
+  line-height: 1.38;
+  text-decoration: none;
+  text-wrap: pretty;
+  hyphens: none;
+  overflow-wrap: break-word;
+  /* Grabado: la luz cae de arriba, así que el filo de abajo del surco brilla. */
+  text-shadow: 0 1px 0 rgb(255 255 255 / .45);
+}
+.piedra-enlace:hover .piedra-texto { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 6px; }
+
+.piedra-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ttod-space-1) var(--ttod-space-4);
+  margin: var(--ttod-space-6) 0 0;
+  padding-top: var(--ttod-space-3);
+  border-top: 1px solid rgb(27 23 16 / .14);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .45);
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-ui);
+  letter-spacing: .08em;
+  color: #463e2f;
+}
+.piedra-id { font-variant-numeric: tabular-nums; text-transform: uppercase; }
+
+/* El colofón: rótulo a la izquierda, dato a la derecha, tres renglones. Es el
+   mismo `dl` de la ficha, a la medida del pie de la losa; con los datos
+   corridos en una línea el punto de separación caía al empezar el renglón. */
+.piedra-pie .ttod-provenance {
+  width: 100%;
+  gap: 0 var(--ttod-space-4);
+  margin: var(--ttod-space-2) 0 0;
+  font-size: var(--ttod-text-ui);
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #463e2f;
+}
+.piedra-pie .ttod-provenance dt {
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #463e2f;
+}
+
+/* ---------- La estela mayor de la entrada ---------- */
+
+/* La estela de la puerta: la primera del tramo, plantada en el camino y no a
+   un lado. A lo ancho no crece sin freno —una estela ancha deja de ser una
+   estela—, así que se queda en la medida de una losa de pie. */
+.estela-mayor { margin-bottom: var(--ttod-space-12); }
+.estela-mayor .piedra { max-width: 34rem; margin-inline: auto; }
+.estela-mayor .piedra { padding-block: var(--ttod-space-12) var(--ttod-space-8); }
+.estela-mayor .piedra-texto {
+  font-family: var(--ttod-font-titular);
+  font-weight: 300;
+  font-size: clamp(1.6rem, 6.4vw, 2.6rem);
+  line-height: 1.22;
+}
+
+/* ---------- El pasillo ---------- */
+
+.pasillo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ttod-space-12);
+}
+
+/* El bosque entero no se pinta de una vez: cada estela se dibuja cuando se
+   acerca al paso. Con las veinte pintadas a la vez, la primera pantalla
+   tardaba 2,9 s en aparecer a 390 con el freno de CPU 4× —la piedra lleva
+   textura, dos sombras interiores, el marco grabado y el zócalo, y el
+   navegador las componía todas antes de enseñar la primera línea—. El
+   `auto` del tamaño hace que, una vez medida, cada estela recuerde lo que
+   ocupa, así que la barra de scroll no da saltos. */
+.estela {
+  position: relative;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 32rem;
+}
+
+/* En el teléfono el bosque también tiene dos lados: las estelas se plantan a
+   un lado y a otro del camino, que baja pegado al canto izquierdo. No es una
+   columna de fichas, es un pasillo. */
+@media (max-width: 63.999rem) {
+  .pasillo {
+    padding-left: var(--ttod-space-4);
+    background-image: linear-gradient(
+      180deg,
+      transparent 0 1.5rem,
+      var(--ttod-color-line-subtle) 1.5rem calc(100% - 1.5rem),
+      transparent calc(100% - 1.5rem)
+    );
+    background-size: 1px 100%;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+  }
+  .estela .piedra { width: 90%; }
+  .estela:nth-child(even) .piedra { margin-inline-start: auto; }
+}
+
+.estela:nth-child(even) .estela-facetas { justify-content: flex-end; }
+
+.estela-facetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ttod-space-2);
+  margin-top: var(--ttod-space-6);
+}
+
+/* Aquí la píldora sí vale: es la faceta de una fila de lista y es un enlace.
+   De contorno fino y neutra — lo prohibido es la píldora rellena de color
+   usada como metadato dentro de una ficha. */
+.faceta-pildora {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--ttod-space-3);
+  border: 1px solid var(--ttod-color-line-subtle);
+  border-radius: 999px;
+  color: var(--ttod-color-muted);
+  text-decoration: none;
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-ui);
+  letter-spacing: .06em;
+  transition: border-color .2s ease, color .2s ease;
+}
+.faceta-pildora:hover { border-color: var(--ttod-color-line); color: var(--ttod-color-ink); }
+.faceta-pildora--nivel { border-color: rgb(154 51 36 / .35); color: var(--ttod-color-seal); }
+
+/* ---------- La salida del pasillo ---------- */
+
+.bosque-salida {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ttod-space-4);
+  margin-top: var(--ttod-space-12);
+  border-top: 1px solid var(--ttod-color-line-subtle);
+  padding-top: var(--ttod-space-6);
+  font-family: var(--ttod-font-ui);
+  font-size: var(--ttod-text-sm);
+}
+.bosque-salida p { margin: 0; color: var(--ttod-color-muted); }
+.bosque-salida nav { display: flex; flex-wrap: wrap; gap: var(--ttod-space-4); }
+.bosque-salida nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ttod-color-seal);
+  text-decoration: none;
+  font-size: var(--ttod-text-ui);
+  letter-spacing: var(--ttod-tracking-ui);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.bosque-salida nav a:hover { text-decoration: underline; text-underline-offset: 5px; }
+
+/* ---------- 1440: el camino entre dos hileras ---------- */
+
+@media (min-width: 64rem) {
+  .pasillo {
+    /* El camino baja por el centro del bosque; las estelas se plantan a un
+       lado y a otro, escalonadas, como en el Beilin. */
+    background-image: linear-gradient(
+      180deg,
+      transparent 0 2rem,
+      var(--ttod-color-line-subtle) 2rem calc(100% - 2rem),
+      transparent calc(100% - 2rem)
+    );
+    background-size: 1px 100%;
+    background-position: 50% 0;
+    background-repeat: no-repeat;
+    gap: 0;
+  }
+  .estela { width: 44%; }
+  .estela::before { display: none; }
+  .estela:nth-child(odd) { align-self: flex-start; }
+  .estela:nth-child(even) { align-self: flex-end; }
+  /* Escalonadas: cada estela empieza antes de que acabe la anterior, que es
+     lo que hace que se vean dos a la vez y que el camino tenga fondo. */
+  .estela + .estela { margin-top: -7rem; }
+  /* Cada estela mira al camino. La perspectiva va en la propia transformación
+     para que la rotación no dependa de un antepasado. */
+  .estela:nth-child(odd) .piedra { transform-origin: right center; }
+  .estela:nth-child(even) .piedra { transform-origin: left center; }
+  .estela-facetas { justify-content: flex-start; }
+}
+
+/* ---------- Profundidad: la estela se pone de frente al llegar ---------- */
+
+/* Solo transformación: ni color ni opacidad. Un velo que cambia el tono
+   debajo del texto cambia el contraste medido, y el contraste no se negocia.
+   Donde no haya `animation-timeline`, las estelas se quedan de frente: es el
+   estado por defecto, no un estado degradado. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) and (min-width: 64rem) {
+    .estela:nth-child(odd) .piedra,
+    .estela:nth-child(even) .piedra {
+      animation: estela-de-frente linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+    .estela:nth-child(odd) .piedra { --giro: 13deg; }
+    .estela:nth-child(even) .piedra { --giro: -13deg; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) and (max-width: 63.999rem) {
+    /* En el teléfono no hay dos hileras: la estela se endereza al pasar por la
+       banda de lectura, como una piedra que te sale al paso. */
+    .piedra {
+      animation: estela-pasa linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+    .estela-mayor .piedra { animation: none; }
+  }
+}
+
+@keyframes estela-de-frente {
+  from { transform: perspective(1150px) rotateY(var(--giro)) translateZ(-90px); }
+  45%, 55% { transform: perspective(1150px) rotateY(0deg) translateZ(0); }
+  to { transform: perspective(1150px) rotateY(var(--giro)) translateZ(-90px); }
+}
+
+@keyframes estela-pasa {
+  from { transform: perspective(1200px) rotateX(-4.5deg) translateZ(-40px); }
+  45%, 55% { transform: perspective(1200px) rotateX(0deg) translateZ(0); }
+  to { transform: perspective(1200px) rotateX(4.5deg) translateZ(-40px); }
+}
+
+@media (forced-colors: active) {
+  .piedra { background-image: none; border: 1px solid CanvasText; }
+  .piedra::before, .piedra::after { display: none; }
+}

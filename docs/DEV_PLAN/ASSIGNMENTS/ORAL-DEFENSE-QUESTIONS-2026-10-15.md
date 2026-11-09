@@ -11,7 +11,7 @@ Each group trio is built as: **(1) own-module decision** · **(2) AI critical us
 
 ## E1 — Content (`gontugithub`) · seam: Content
 
-*Live tips still open: #65 provenance · #67 propose-form component test · #68 design-decision doc. Tasks 7–8 (cross-team PR / formal review) **waived**.*
+*Tip PRs merged: #61–#68 (+ #43). Tasks 7–8 (cross-team PR / formal review) **waived**.*
 
 1. **Learning — provenance as a surface, not a field.**  
    Task 5 asks for source/rights/provenance on *every* quote view (index cards, facet listings, and detail). Why is “we put it on the detail page” not enough? What breaks for a reader who never opens the detail route?
@@ -26,7 +26,7 @@ Each group trio is built as: **(1) own-module decision** · **(2) AI critical us
 
 ## E2 — Graph (`gpfc-git`) · seam: Graph
 
-*Tasks 1–8 on main (#48 → … → #78). Tip 9 (formal review of another team’s PR) **waived**. Tip 10 (design-decision memo) still owed if not filed.*
+*Tasks 1–8 on main (#48 → … → #78). Tip 9 **waived**. Tip 10: no tip PR filed.*
 
 1. **Learning — URL as source of truth.**  
    In #71, user actions use `pushState` and load/corrections use `replaceState`. Explain one concrete bug you would get if *every* URL write used `pushState` (including invalid-tag cleanup on first paint).

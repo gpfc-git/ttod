@@ -1,0 +1,126 @@
+---
+/**
+ * El fondo de Sabiduría: el estudio de un letrado pintado por Hua Yan en 1745
+ * (Cleveland Museum of Art, 1982.68.10, CC0). Aquí el fondo
+ * también es pintura china de una biblioteca, y un poco animado.
+ *
+ * La hoja del álbum llena la primera pantalla y se funde en su propio papel,
+ * que es el fondo del resto de la página. Se mueve poco y despacio: la pintura
+ * baja más lenta que el scroll (parallax de una capa, ligado al scroll en CSS), dos bancos de aguada
+ * derivan por delante y una luz cálida respira sobre la mesa. Todo es
+ * `transform` y `opacity` (compositor), sin WebGL; con movimiento reducido no
+ * se mueve nada.
+ *
+ * Va con `position: absolute` sin antecesor posicionado: empieza en lo alto
+ * del documento, por detrás de la cabecera flotante, sin franja de papel
+ * encima.
+ */
+const ANCHOS = [800, 1400, 2200, 3196];
+const movil = [800, 1400, 2200].map((a) => `/visual-system/sabiduria/estudio-hua-yan-${a}.webp ${a}w`).join(', ');
+const srcset = ANCHOS.map((a) => `/visual-system/sabiduria/estudio-hua-yan-${a}.webp ${a}w`).join(', ');
+---
+<div class="fe-escena" aria-hidden="true">
+  <div class="fe-capa fe-pintura" data-fe-pintura>
+    {/* En el teléfono el techo es el de 2200: el de 3196 en una pantalla de
+        densidad 3 era una textura de 3600 px que rasterizar en cada scroll
+        (medido: fotogramas de 80-130 ms con el freno de CPU). */}
+    <picture>
+    <source media="(max-width: 40rem)" srcset={movil} sizes="311vw" />
+    <img
+      src="/visual-system/sabiduria/estudio-hua-yan-1400.webp"
+      srcset={srcset}
+      sizes="100vw"
+      width="2200"
+      height="1834"
+      alt=""
+      decoding="async"
+      fetchpriority="low"
+    />
+    </picture>
+  </div>
+  <div class="fe-capa fe-luz"></div>
+  <div class="fe-capa fe-niebla fe-niebla--lejos"></div>
+  <div class="fe-capa fe-niebla fe-niebla--cerca"></div>
+</div>
+
+<style>
+  /* El papel de la hoja del álbum es el fondo de toda la vista. */
+  :global(body:has(.fe-escena)) {
+    background-color: #ebe2d0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .3 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+  :global(html:has(.fe-escena)) { overflow-x: clip; }
+  .fe-escena {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: max(120svh, 52rem);
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+  }
+  .fe-capa { position: absolute; inset: 0; }
+  /* La pintura se funde abajo en su propio papel. */
+  .fe-pintura {
+    /* Del alto de la escena: el fundido acaba dentro de ella, nunca en su
+       canto (que cortaba la pintura en recto). El parallax la baja, así que
+       lo que se destapa arriba ya ha salido de la pantalla. */
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 92%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 92%);
+  }
+  .fe-pintura picture { display: contents; }
+  .fe-pintura img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    /* El letrado y su mesa a la vista; a la izquierda queda el poema. */
+    object-position: 64% 38%;
+    /* Un punto más pálida: es fondo, no protagonista. */
+    opacity: .82;
+    /* Se mueve la imagen, no la capa con máscara: la máscara queda quieta y
+       el compositor sólo desliza una textura ya pintada. */
+    will-change: transform;
+  }
+  /* La luz de la tarde sobre la mesa, que respira. */
+  .fe-luz {
+    background: radial-gradient(38rem 26rem at 68% 46%, rgb(255 244 214 / .55), transparent 70%);
+    animation: fe-respira 9s ease-in-out infinite alternate;
+  }
+  /* Dos bancos de aguada que derivan, a dos velocidades: profundidad sin
+     recortes de capas. */
+  .fe-niebla { inset: -10% -20%; will-change: transform; }
+  .fe-niebla--lejos {
+    background:
+      radial-gradient(30rem 9rem at 20% 62%, rgb(236 228 212 / .75), transparent 70%),
+      radial-gradient(26rem 8rem at 78% 30%, rgb(236 228 212 / .55), transparent 70%);
+    animation: fe-deriva 46s ease-in-out infinite alternate;
+  }
+  .fe-niebla--cerca {
+    background:
+      radial-gradient(34rem 10rem at 60% 84%, rgb(240 233 219 / .8), transparent 72%),
+      radial-gradient(22rem 7rem at 10% 20%, rgb(240 233 219 / .45), transparent 70%);
+    animation: fe-deriva 31s ease-in-out -12s infinite alternate-reverse;
+  }
+  @keyframes fe-respira { from { opacity: .35; } to { opacity: 1; } }
+  @keyframes fe-deriva { from { transform: translate3d(-5%, 0, 0); } to { transform: translate3d(5%, -2%, 0); } }
+  /* El parallax lo lleva el propio scroll (animación ligada al scroll, en el
+     compositor): con GSAP cada fotograma de scroll recalculaba estilos en el
+     hilo principal (medido: 360 recálculos y fotogramas de 80 ms con el freno
+     de CPU). Donde no hay `animation-timeline`, la pintura se queda quieta. */
+  @supports (animation-timeline: scroll()) {
+    .fe-pintura img {
+      animation: fe-baja linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 max(120svh, 52rem);
+    }
+  }
+  @keyframes fe-baja { to { transform: translate3d(0, 12%, 0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .fe-luz, .fe-niebla, .fe-pintura img { animation: none; }
+  }
+</style>
+

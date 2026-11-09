@@ -1,0 +1,328 @@
+---
+/**
+ * La pila: los volúmenes del armario tumbados unos sobre otros, y una cita al
+ * azar que sale de ella (las cartas de la biblioteca se
+ * apilan y sale una al azar).
+ *
+ * Al tocar la pila sale una cita del corpus; el libro de su sección se escurre
+ * de la pila, vuela hasta la mano y se abre por esa página. Con sesión la cita
+ * la elige `/api/v1/wisdom/random` (pide un token de acceso con la cookie,
+ * como manda el backend); sin sesión ese endpoint responde 401, así que se
+ * elige del mismo corpus que ya ha llegado con la página: la misma tirada,
+ * sobre los mismos datos.
+ *
+ * La lectura es un `<dialog>` nativo: Esc la cierra, el foco no se escapa y
+ * vuelve a la pila al cerrar. Todo lo que se mueve es `transform` y `opacity`.
+ */
+import type { WisdomEntry } from '../../types/domain';
+import type { Locale } from '../../content/wisdom';
+import { rotuloNivel } from '../../content/bosque';
+import { copia, type Volumen } from '../../content/estanteria';
+
+interface Props {
+  locale: Locale;
+  armario: Volumen[];
+  entries: WisdomEntry[];
+  sesion: boolean;
+}
+
+const { locale, armario, entries, sesion } = Astro.props;
+const t = copia[locale];
+
+// Lo justo para pintar una página en el cliente: nada que no salga del backend.
+const datos = {
+  locale,
+  sesion,
+  volumenes: Object.fromEntries(
+    armario.map((v, i) => [v.slug, { titulo: v.titulo, n: v.citas.length, tono: v.tono, orden: i, ids: v.citas.map((c) => c.id) }]),
+  ),
+  niveles: Object.fromEntries(entries.map((e) => [e.level, rotuloNivel(e.level, locale)])),
+  citas: entries.map((e) => ({
+    id: e.id,
+    text: e.text,
+    section: e.section,
+    level: e.level,
+    rights: { holder: e.rights?.holder, license: e.rights?.license },
+  })),
+  t: { pagina: t.paginaPlantilla, volumen: t.volumen, aforismo: t.aforismos(1), aforismos: t.aforismosPlantilla },
+};
+// La pila, de abajo arriba: los gruesos debajo, como se apilan los libros de verdad.
+const pila = armario;
+---
+
+<section class="mazo" aria-labelledby="mazo-titulo">
+  <span class="nube-ruyi" data-nube="53" aria-hidden="true"></span>
+  <div class="mazo-texto">
+    <h2 id="mazo-titulo" class="mazo-titulo">{t.mazoTitulo}</h2>
+    <p class="mazo-intro">{t.mazoIntro}</p>
+  </div>
+
+  <button class="mazo-pila" type="button" data-mazo-sacar>
+    <span class="pila-escena" aria-hidden="true">
+      <span class="pila">
+        {pila.map((v, i) => (
+          <span
+            class="pila-libro"
+            data-seccion={v.slug}
+            style={`--grosor:${v.grosor}px; --tono:${v.tono}; --i:${i}; --n:${pila.length};`}
+          >
+            <span class="pl-cara pl-arriba"></span>
+            <span class="pl-cara pl-canto"></span>
+            <span class="pl-cara pl-lomo"><span class="pl-titulo">{v.titulo}</span><span class="pl-cuenta">{v.citas.length}</span></span>
+          </span>
+        ))}
+      </span>
+    </span>
+    <span class="mazo-boton">{t.mazoBoton}</span><span class="mazo-oculto">{t.mazoBotonCuenta(entries.length)}</span>
+  </button>
+  <p class="mazo-estado" role="status" aria-live="polite" data-mazo-estado></p>
+</section>
+
+<dialog class="lectura" aria-labelledby="lectura-volumen" data-mazo-lectura>
+  <div class="lectura-libro" data-mazo-libro>
+    <article class="lectura-hoja">
+      <p class="lectura-volumen" id="lectura-volumen" data-l="volumen"></p>
+      <p class="lectura-folio" data-l="folio"></p>
+      <blockquote class="lectura-texto" data-l="texto"></blockquote>
+      <p class="lectura-pie"><span data-l="id"></span> · <span data-l="nivel"></span></p>
+      <p class="lectura-procedencia" data-l="procedencia"></p>
+      <p class="lectura-enlaces">
+        <a data-l="cita" href={`/${locale}/wisdom/`}>{t.abrirCita}</a>
+        <a data-l="seccion" href={`/${locale}/wisdom/`}>{t.todoElVolumen}</a>
+      </p>
+      <div class="lectura-acciones">
+        <button type="button" class="lectura-otra" data-mazo-otra>{t.otra}</button>
+        <button type="button" class="lectura-cerrar" data-mazo-cerrar autofocus>{t.cerrar}</button>
+      </div>
+      <p class="lectura-pista" aria-hidden="true">{t.deslizaCerrar}</p>
+    </article>
+    <div class="lectura-tapa" aria-hidden="true" data-mazo-tapa>
+      <span class="lt-rotulo" data-l="tapa-rotulo"></span>
+      <span class="lt-titulo" data-l="tapa-titulo"></span>
+      <span class="lt-cuenta" data-l="tapa-cuenta"></span>
+    </div>
+  </div>
+</dialog>
+
+<script type="application/json" id="mazo-datos" set:html={JSON.stringify(datos).replace(/</g, '\\u003c')} />
+
+<script>
+  type Cita = { id: string; text: string; section: string; level: string; lang?: string; rights?: { holder?: string; license?: string } };
+  type Datos = {
+    locale: 'es' | 'en';
+    sesion: boolean;
+    volumenes: Record<string, { titulo: string; n: number; tono: number; orden: number; ids: string[] }>;
+    niveles: Record<string, string>;
+    citas: Cita[];
+    t: { pagina: string; volumen: string; aforismo: string; aforismos: string };
+  };
+
+  const nodo = document.getElementById('mazo-datos');
+  const boton = document.querySelector<HTMLButtonElement>('[data-mazo-sacar]');
+  const dialogo = document.querySelector<HTMLDialogElement>('[data-mazo-lectura]');
+  if (nodo && boton && dialogo) {
+    const d: Datos = JSON.parse(nodo.textContent ?? '{}');
+    const libro = dialogo.querySelector<HTMLElement>('[data-mazo-libro]')!;
+    const tapa = dialogo.querySelector<HTMLElement>('[data-mazo-tapa]')!;
+    const estado = document.querySelector<HTMLElement>('[data-mazo-estado]')!;
+    const campo = (k: string) => dialogo.querySelector<HTMLElement>(`[data-l="${k}"]`)!;
+    const quieto = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // El muelle, muestreado: los mismos puntos que el `linear()` de la
+    // estantería, pero metidos en los fotogramas clave. Pasarlo como `easing`
+    // dejaba la animación parada en el WebKit de prueba.
+    const MUELLE = [0, 0.0618, 0.2078, 0.3896, 0.5728, 0.7359, 0.8677, 0.9651, 1.0297, 1.0666, 1.0819, 1.0821, 1.0728, 1.0587, 1.0431, 1.0285, 1.0161, 1.0066, 0.9999, 0.9957, 0.9936, 0.993, 0.9935, 0.9945, 0.9958, 0.997, 0.9982, 1];
+    const muelle = (el: Element, f: (p: number, i: number) => Keyframe, duration: number, fill: FillMode = 'none') =>
+      el.animate(MUELLE.map((p, i) => f(p, i / (MUELLE.length - 1))), { duration, easing: 'linear', fill });
+    const suave = 'cubic-bezier(.22,.8,.26,1)';
+    let token: string | null | undefined;
+    let sacado: HTMLElement | null = null;
+    let ocupado = false;
+
+    // Con sesión, la cita la elige el backend. El endpoint sirve los dos
+    // idiomas, así que se repite la tirada hasta que cae una del idioma de la
+    // página (seis tiradas: una de cada 64 veces se cae al corpus local).
+    async function remota(): Promise<Cita | null> {
+      if (!d.sesion || token === null) return null;
+      try {
+        if (token === undefined) {
+          const r = await fetch('/api/v1/auth/token', { method: 'POST', credentials: 'same-origin' });
+          token = r.ok ? ((await r.json()).access_token ?? null) : null;
+          if (!token) return null;
+        }
+        for (let i = 0; i < 6; i++) {
+          const r = await fetch('/api/v1/wisdom/random', { headers: { accept: 'application/json', authorization: `Bearer ${token}` } });
+          if (!r.ok) return null;
+          const c: Cita = await r.json();
+          if (c.lang === d.locale && d.volumenes[c.section]) return c;
+        }
+      } catch {
+        /* sin red: se elige del corpus que ya está en la página */
+      }
+      return null;
+    }
+    let ultima = '';
+    function local(): Cita {
+      let c: Cita;
+      do c = d.citas[Math.floor(Math.random() * d.citas.length)];
+      while (d.citas.length > 1 && c.id === ultima);
+      return c;
+    }
+
+    function rellenar(c: Cita) {
+      ultima = c.id;
+      const v = d.volumenes[c.section];
+      const pag = Math.max(1, v.ids.indexOf(c.id) + 1);
+      libro.style.setProperty('--tono', String(v.tono));
+      tapa.dataset.tono = String(v.tono);
+      campo('volumen').textContent = `${d.t.volumen} · ${v.titulo}`;
+      campo('folio').textContent = d.t.pagina.replace('{p}', String(pag)).replace('{n}', String(v.n));
+      campo('texto').textContent = c.text;
+      campo('id').textContent = c.id;
+      campo('nivel').textContent = d.niveles[c.level] ?? c.level;
+      campo('procedencia').textContent = [c.rights?.holder, c.rights?.license].filter(Boolean).join(' · ');
+      (campo('cita') as HTMLAnchorElement).href = `/${d.locale}/wisdom/${c.id}/`;
+      (campo('seccion') as HTMLAnchorElement).href = `/${d.locale}/wisdom/sections/${c.section}/`;
+      campo('tapa-rotulo').textContent = d.t.volumen;
+      campo('tapa-titulo').textContent = v.titulo;
+      campo('tapa-cuenta').textContent = v.n === 1 ? d.t.aforismo : d.t.aforismos.replace('{n}', String(v.n));
+    }
+
+    const fin = (a: Animation) => a.finished.catch(() => undefined);
+
+    async function abrirTapa() {
+      tapa.hidden = false;
+      // Al final del giro la tapa se desvanece: queda fuera de la pantalla.
+      await fin(muelle(tapa, (p, t) => ({ transform: `rotateY(${176 * p}deg)`, opacity: t < 0.7 ? 1 : Math.max(0, 1 - (t - 0.7) / 0.3) }), 760, 'forwards'));
+      tapa.hidden = true;
+    }
+    async function cerrarTapa() {
+      tapa.hidden = false;
+      await fin(tapa.animate([{ transform: 'rotateY(176deg)', opacity: 0 }, { transform: 'rotateY(150deg)', opacity: 1, offset: 0.15 }, { transform: 'rotateY(0deg)', opacity: 1 }], { duration: 420, easing: suave, fill: 'forwards' }));
+    }
+
+    // Del libro de la pila a la lectura: se mide dónde está uno y dónde estará
+    // el otro, y se vuela de un sitio al otro sólo con `transform`.
+    // p = 0: tumbado en la pila; p = 1: de pie en la mano.
+    function vuelo(origen: HTMLElement) {
+      const a = origen.getBoundingClientRect();
+      const b = libro.getBoundingClientRect();
+      const s = a.width / b.width;
+      const dx = a.left + a.width / 2 - (b.left + b.width / 2);
+      const dy = a.top + a.height / 2 - (b.top + b.height / 2);
+      return (p: number) => `translate(${dx * (1 - p)}px, ${dy * (1 - p)}px) scale(${s + (1 - s) * p}) rotateX(${74 * (1 - p)}deg)`;
+    }
+
+    async function sacar() {
+      if (ocupado) return;
+      ocupado = true;
+      boton!.setAttribute('aria-busy', 'true');
+      const c = (await remota()) ?? local();
+      rellenar(c);
+      const origen = document.querySelector<HTMLElement>(`.pila-libro[data-seccion="${CSS.escape(c.section)}"]`);
+      estado.textContent = '';
+      if (quieto() || !origen) {
+        tapa.hidden = true;
+        dialogo!.showModal();
+        await fin(libro.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' }));
+      } else {
+        sacado = origen;
+        // Se escurre de la pila hacia el lado, como se saca un libro de un montón.
+        await fin(origen.animate(
+          [{ transform: 'translateX(0)' }, { transform: 'translateX(46%) rotateZ(-3deg)' }],
+          { duration: 300, easing: suave, fill: 'forwards' },
+        ));
+        origen.style.visibility = 'hidden';
+        tapa.hidden = false;
+        tapa.getAnimations().forEach((a) => a.cancel());
+        dialogo!.showModal();
+        const en = vuelo(origen);
+        const volando = muelle(libro, (p, t) => ({ transform: en(p), opacity: Math.min(1, 0.5 + t * 1.7) }), 640);
+        await new Promise((r) => setTimeout(r, 380));
+        await Promise.all([fin(volando), abrirTapa()]);
+      }
+      boton!.removeAttribute('aria-busy');
+      ocupado = false;
+    }
+
+    async function cerrar() {
+      if (ocupado || !dialogo!.open) return;
+      ocupado = true;
+      const origen = sacado;
+      if (quieto() || !origen) {
+        await fin(libro.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: 'ease-in' }));
+        dialogo!.close();
+      } else {
+        await cerrarTapa();
+        // Para medir el destino el libro de la pila tiene que estar en su sitio.
+        origen.getAnimations().forEach((a) => a.cancel());
+        origen.style.transform = 'translateX(46%) rotateZ(-3deg)';
+        await fin(libro.animate([{ transform: libro.style.transform || 'none' }, { transform: vuelo(origen)(0), opacity: 0.6 }], { duration: 420, easing: suave, fill: 'forwards' }));
+        dialogo!.close();
+        libro.getAnimations().forEach((a) => a.cancel());
+        libro.style.transform = '';
+        origen.style.visibility = '';
+        origen.style.transform = '';
+        muelle(origen, (p) => ({ transform: `translateX(${46 * (1 - p)}%) rotateZ(${-3 * (1 - p)}deg)` }), 520);
+      }
+      sacado = null;
+      ocupado = false;
+      boton!.focus();
+    }
+
+    async function otra() {
+      if (ocupado) return;
+      ocupado = true;
+      const c = (await remota()) ?? local();
+      if (quieto()) {
+        rellenar(c);
+      } else {
+        await cerrarTapa();
+        rellenar(c);
+        // Si la nueva es de otro volumen, el libro vuelve a su sitio en la pila
+        // y el de la nueva queda fuera.
+        const nuevo = document.querySelector<HTMLElement>(`.pila-libro[data-seccion="${CSS.escape(c.section)}"]`);
+        if (sacado && nuevo && nuevo !== sacado) {
+          sacado.style.visibility = '';
+          sacado.getAnimations().forEach((a) => a.cancel());
+          nuevo.style.visibility = 'hidden';
+          sacado = nuevo;
+        }
+        await new Promise((r) => setTimeout(r, 120));
+        await abrirTapa();
+      }
+      ocupado = false;
+    }
+
+    boton.addEventListener('click', sacar);
+    dialogo.querySelector('[data-mazo-cerrar]')!.addEventListener('click', cerrar);
+    dialogo.querySelector('[data-mazo-otra]')!.addEventListener('click', otra);
+    // Esc: el cierre animado, no el instantáneo del navegador.
+    dialogo.addEventListener('cancel', (e) => { e.preventDefault(); cerrar(); });
+    // Tocar fuera del libro también lo cierra.
+    dialogo.addEventListener('click', (e) => { if (e.target === dialogo) cerrar(); });
+
+    // Deslizar hacia abajo cierra: el libro sigue al dedo y, si no se llega al
+    // umbral, vuelve con un muelle.
+    let y0: number | null = null;
+    let dy = 0;
+    libro.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || ocupado || (e.target as HTMLElement).closest('a,button')) return;
+      y0 = e.clientY; dy = 0;
+    });
+    libro.addEventListener('pointermove', (e) => {
+      if (y0 === null) return;
+      dy = Math.max(0, e.clientY - y0);
+      libro.style.transform = `translateY(${dy}px) rotateX(${-dy / 30}deg)`;
+    });
+    const soltar = () => {
+      if (y0 === null) return;
+      y0 = null;
+      if (dy > 90) { cerrar(); return; }
+      const d = dy;
+      libro.style.transform = '';
+      if (d) muelle(libro, (p) => ({ transform: `translateY(${d * (1 - p)}px) rotateX(${(-d / 30) * (1 - p)}deg)` }), 420);
+    };
+    libro.addEventListener('pointerup', soltar);
+    libro.addEventListener('pointercancel', soltar);
+  }
+</script>

@@ -1,0 +1,80 @@
+import { construirGrafo, planoGuardable, type PlanoGuardado, type RespuestaGrafo } from '../components/graph/sendero';
+
+/**
+ * El plano 2D de /graph, calculado en el servidor una vez por grafo y por idioma.
+ *
+ * En la primera visita el navegador tenía que calcularlo él al llegar los datos:
+ * 202 nodos x 220 pasadas, ~220 ms de hilo con la CPU a 1/4 (perfil de /es/graph
+ * en un móvil emulado), la tarea más larga entre «llegan los datos» y «se ven estrellas».
+ * Aquí se calcula con el mismo código (`sendero.ts`) sobre el mismo endpoint real
+ * y se incrusta en la página; el navegador solo comprueba la huella.
+ *
+ * Nunca hace esperar a la página: si todavía no hay grafo guardado, esa visita
+ * sale sin plano incrustado (el navegador lo calcula, como antes) y la petición
+ * sigue para las siguientes. Se refresca por detrás cada minuto, igual que el
+ * corpus de la portada (`corpus.server.ts`).
+ */
+const VIDA_MS = 60_000;
+
+// En `globalThis` y no en el módulo: en desarrollo (`astro dev`) Vite puede volver
+// a evaluar el módulo y la copia se perdería en cada visita.
+const memoria = ((globalThis as any).__ttodGrafo ??= { planos: new Map() }) as {
+  guardado?: { t: number; datos: RespuestaGrafo; texto: string };
+  enVuelo?: Promise<void>;
+  planos: Map<string, PlanoGuardado>;
+};
+const { planos } = memoria;
+
+function refresca(): Promise<void> {
+  if (!memoria.enVuelo) {
+    const backend = import.meta.env.BACKEND_URL ?? 'http://backend:8000';
+    memoria.enVuelo = (async () => {
+      try {
+        const r = await fetch(`${backend}/api/v1/graph`, { headers: { accept: 'application/json' } });
+        if (!r.ok) return;
+        const texto = await r.text();
+        const datos = JSON.parse(texto) as RespuestaGrafo;
+        if (!Array.isArray(datos?.nodes) || !Array.isArray(datos?.edges)) return;
+        memoria.guardado = { t: Date.now(), datos, texto };
+        planos.clear();
+      } catch {
+        // Sin backend no hay plano incrustado; la página sale igual.
+      } finally {
+        memoria.enVuelo = undefined;
+      }
+    })();
+  }
+  return memoria.enVuelo;
+}
+
+refresca();
+
+/** El plano de este idioma si ya hay grafo guardado; si no, `null` sin esperar. */
+export function planoInicial(idioma: string): PlanoGuardado | null {
+  const guardado = vigente();
+  if (!guardado) return null;
+  let plano = planos.get(idioma);
+  if (!plano) {
+    const grafo = construirGrafo(guardado.datos, idioma);
+    if (!grafo.nodos.length) return null;
+    plano = planoGuardable(grafo.nodos, grafo.aristas);
+    planos.set(idioma, plano);
+  }
+  return plano;
+}
+
+/**
+ * El propio `/api/v1/graph` tal como lo dio el backend, para incrustarlo en la
+ * página: así la constelación no espera a una petición del navegador al backend
+ * (en la vista que usa el backend compartido son 1,3-3 s por petición). Mismo
+ * cuerpo byte a byte; si no hay copia, `null` y el navegador lo pide como antes.
+ */
+export function grafoInicial(): string | null {
+  return vigente()?.texto ?? null;
+}
+
+function vigente() {
+  const guardado = memoria.guardado;
+  if (!guardado || Date.now() - guardado.t >= VIDA_MS) refresca();
+  return memoria.guardado ?? null;
+}

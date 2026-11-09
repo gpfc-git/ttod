@@ -23,6 +23,12 @@ body { margin: 0; }
 .ttod-nav a, .ttod-pill { color: var(--ttod-color-accent); }
 .ttod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--ttod-space-4); }
 .ttod-card { border: 1px solid var(--ttod-color-line); border-radius: .5rem; padding: var(--ttod-space-6); background: var(--ttod-color-surface); }
+/* Aquí había `content-visibility: auto` con 394 px de alto supuesto por ficha,
+   pensado para la rejilla de 230 fichas de Sabiduría. Sabiduría ya no
+   usa esta rejilla (es el armario, con su propia regla en armario.css) y la única
+   que queda es la de Docs: siete fichas de ~150 px que, supuestas de 394, hacían
+   saltar el pie al pintarse (Lighthouse /docs: CLS 0,154 en móvil, 0,12 en
+   escritorio). */
 .ttod-card blockquote { margin: 0 0 var(--ttod-space-4); font-size: var(--ttod-text-lg); }
 .ttod-meta { color: var(--ttod-color-muted); font: var(--ttod-text-sm)/1.5 var(--ttod-font-ui); }
 .ttod-empty { border-inline-start: .25rem solid var(--ttod-color-accent); padding: var(--ttod-space-6); background: var(--ttod-color-surface); }
@@ -39,3 +45,32 @@ body { margin: 0; }
 .ttod-provenance dt { font-weight: 600; }
 .ttod-provenance dd { margin: 0; }
 .ttod-provenance-compact { margin-top: var(--ttod-space-2, .5rem); }
+
+/* Objetivos táctiles de 44 px en móvil: enlaces de navegación, migas,
+   enlaces solos en una lista, títulos-enlace de tarjeta, la vuelta atrás de quote y enlaces de licencia. El texto no cambia de tamaño; crece la zona. */
+.ttod-nav a, .ttod-breadcrumbs a, main li > a:only-child, main a[href*="creativecommons.org"],
+.ttod-card h2 > a:only-child, nav:has(+ main) > a {
+  display: inline-flex; align-items: center; min-height: 44px; padding-inline: .25rem;
+}
+.ttod-nav { gap: var(--ttod-space-4, 1rem); }
+main input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), main select, main button { min-height: 44px; }
+
+/* Estilo «cielo ruyi» (el del dragón del oráculo, extendido a toda
+   la web). Techo renacentista + pintura china: cielo de fresco (Tiepolo), nubes ruyi a pincel
+   seco con aguada crema y vientre rosado, loong de tinta con escamas de oro y perla bermellón.
+   Piezas en src/components/estilo/ (CieloRuyi.astro, tinta.ts, dragon.ts, cadena.ts). Los
+   lienzos usan los mismos valores (constantes en tinta.ts y dragon.ts). */
+:root {
+  --ttod-cielo-alto: #6f93b8;      /* azul de fresco, arriba */
+  --ttod-cielo-medio: #93b1cc;
+  --ttod-cielo-bajo: #b4c9da;      /* azul claro, abajo, hasta el pie */
+  --ttod-cielo-luz: #dbe6ee;       /* apertura de luz fría detrás del centro */
+  --ttod-cielo-sube: 5rem;         /* cuánto sube el cielo por detrás de la cabecera flotante */
+  --ttod-cielo-baja: calc(clamp(2rem, 5vw, 4rem) + clamp(44px, 7vw, 110px)); /* hasta detrás de la cresta del pie (Footer.astro) */
+  --ttod-nube-luz: #fff0ce;        /* aguada, lado de la luz */
+  --ttod-nube-vientre: #bea2a0;    /* aguada, vientre */
+  --ttod-tinta-pincel: #34261b;    /* contorno ruyi a pincel seco */
+  --ttod-tinta-loong: #231a12;     /* cuerpo del dragón */
+  --ttod-oro-escama: #d6aa54;      /* escamas, garras, ojo */
+  --ttod-bermellon: #a5321f;       /* perla, boca; el mismo rojo de las rúbricas */
+}

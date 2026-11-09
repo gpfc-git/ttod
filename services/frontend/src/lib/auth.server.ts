@@ -82,12 +82,27 @@ export async function getSessionUser(request: Request): Promise<AuthUser | null>
   }
 }
 
+/**
+ * La ruta a la que volver tras entrar. Solo rutas de este mismo sitio («/algo»):
+ * «//otro.com», «/\\otro.com» o una URL completa serían una redirección abierta.
+ */
+export function safeNextPath(value: unknown, locale: 'en' | 'es'): string {
+  const fallback = `/${locale}/account`;
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return fallback;
+  if (/[\\\u0000-\u001f]/.test(value)) return fallback;
+  if (/^\/(en|es)\/login\/?(\?|$)/.test(value)) return fallback;
+  return value;
+}
+
 // Las guardas devuelven el Response en vez de lanzarlo: en Astro 5 un `throw` de un
 // Response desde el frontmatter termina en un 500, no en la redirección esperada.
 export async function requireUser(request: Request): Promise<AuthUser | Response> {
   const user = await getSessionUser(request);
   if (user) return user;
-  return new Response(null, { status: 302, headers: { location: `/${localeOf(request)}/login` } });
+  const { pathname, search } = new URL(request.url);
+  // Tras entrar se vuelve aquí: el login lee `next` y solo acepta rutas de este sitio.
+  const next = encodeURIComponent(pathname + search);
+  return new Response(null, { status: 302, headers: { location: `/${localeOf(request)}/login?next=${next}` } });
 }
 
 export async function requireRole(

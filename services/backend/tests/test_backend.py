@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
 from fastapi.testclient import TestClient
 from passlib.context import CryptContext
 
@@ -148,6 +149,44 @@ class BackendTests(unittest.TestCase):
 
     def test_graph_is_byte_deterministic(self):
         self.assertEqual(self.client.get("/api/v1/graph").content, self.client.get("/api/v1/graph").content)
+
+    def test_graph_revalidates_with_etag(self):
+        first = self.client.get("/api/v1/graph")
+        etag = first.headers["etag"]
+        self.assertRegex(etag, r"^\"[0-9a-f]{32}\"$")
+        self.assertIn("max-age", first.headers["cache-control"])
+        again = self.client.get("/api/v1/graph", headers={"If-None-Match": etag})
+        self.assertEqual(again.status_code, 304)
+        self.assertEqual(again.content, b"")
+
+    def test_graph_cache_follows_source_changes(self):
+        import shutil
+        source = Path(self.temp.name) / "ttod.yml"
+        shutil.copy(self.settings.ttod_path, source)
+        snapshots = SnapshotService(source, self.settings.schema_dir)
+        before = snapshots.graph_bytes()
+        self.assertIs(snapshots.graph_bytes(), before)
+        root = yaml.safe_load(source.read_text(encoding="utf-8"))
+        root["quotes"] = [q for q in root["quotes"] if q.get("id") != root["quotes"][0]["id"]]
+        source.write_text(yaml.safe_dump(root, allow_unicode=True), encoding="utf-8")
+        after = snapshots.graph_bytes()
+        self.assertNotEqual(before, after)
+
+    def test_wisdom_parses_the_source_only_when_it_changes(self):
+        import shutil
+        source = Path(self.temp.name) / "ttod.yml"
+        shutil.copy(self.settings.ttod_path, source)
+        snapshots = SnapshotService(source, self.settings.schema_dir)
+        with patch.object(snapshots.repository, "load", wraps=snapshots.repository.load) as load:
+            first = snapshots.wisdom()
+            self.assertIs(snapshots.wisdom(), first)
+            snapshots.graph_bytes()
+            self.assertEqual(load.call_count, 1)
+            root = yaml.safe_load(source.read_text(encoding="utf-8"))
+            root["quotes"] = [q for q in root["quotes"] if q.get("id") != root["quotes"][0]["id"]]
+            source.write_text(yaml.safe_dump(root, allow_unicode=True), encoding="utf-8")
+            self.assertIsNot(snapshots.wisdom(), first)
+            self.assertEqual(load.call_count, 2)
 
     def test_creative_stream_discloses_mode_without_citations(self):
         response = self.client.post(
@@ -333,7 +372,7 @@ class BackendTests(unittest.TestCase):
 
     def test_proposal_api_reports_a_storage_failure_without_leaking_the_path(self):
         self.sign_in()
-        with patch("services.backend.app.main.ProposalStore.save", side_effect=OSError("disk full")):
+        with patch("services.backend.app.proposal_drafts.ProposalStore.save", side_effect=OSError("disk full")):
             response = self.client.post(
                 "/api/v1/proposals",
                 json={"text": "A useful quote", "section": "wisdom"},

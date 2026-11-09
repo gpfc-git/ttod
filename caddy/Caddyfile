@@ -5,11 +5,48 @@
 :8080, :8443 {
   @api path /api/* /health
   handle @api {
+    # El JSON de la API también se comprime (medido en la vista previa con gzip:
+    # /api/v1/graph 138 KB -> 15 KB, /api/v1/wisdom/sample 230 KB -> 51 KB). Solo
+    # JSON: el oráculo contesta en `text/event-stream` y ese flujo no pasa por el
+    # compresor, que lo retendría hasta llenar un bloque y rompería el goteo.
+    encode {
+      zstd
+      gzip
+      match {
+        header Content-Type application/json*
+      }
+    }
+    # El corpus público cambia a mano y pocas veces: un minuto en el navegador (o
+    # en un CDN, si algún día lo hay), igual que la copia que guarda el servidor
+    # de Astro. `?` solo lo pone si el backend no manda ya su propia cabecera.
+    @corpus {
+      method GET
+      path /api/v1/wisdom/sample
+    }
+    header @corpus ?Cache-Control "public, max-age=60, stale-while-revalidate=600"
     reverse_proxy backend:8000
   }
 
   @serviceWorker path /sw.js
   header @serviceWorker Cache-Control "max-age=0, no-cache"
+
+  # El adaptador de Node sólo marca `/_astro/*` como inmutable; todo lo que vive
+  # en `public/` sale con `max-age=0`, así que el navegador revalida en cada
+  # navegación. Medido a 390 con 4G lento: los seis woff2 (~145 KB) se
+  # revalidaban al pasar de una vista a otra, y `difusion-tinta.webp` llegaba a
+  # bajarse dos veces en la misma carga (322 + 321 KB).
+  # Las fuentes llevan nombre estable y no cambian: un año.
+  @fuentes path /visual-system/fonts/*
+  header @fuentes Cache-Control "public, max-age=31536000, immutable"
+  # Las pinturas comparten nombre entre versiones (`valle-frente-3136.webp` se
+  # regradúa sin renombrarse), así que una semana, no un año: quien ya la tiene
+  # no la vuelve a pedir hoy, y una gradación nueva llega como mucho en siete
+  # días. Cuando los nombres lleven versión, esto sube a `immutable`.
+  @pinturas {
+    path /visual-system/*
+    not path /visual-system/fonts/*
+  }
+  header @pinturas Cache-Control "public, max-age=604800"
 
   # Static build of docs/public (project info, teaching model, backlog) — `make docs-local`
   # populates this; empty/missing until then. Instructor reference only, not the student artifact.

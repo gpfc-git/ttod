@@ -1,5 +1,7 @@
 const CACHE_PREFIX = 'ttod-pwa-stub-';
-const CACHE_NAME = `${CACHE_PREFIX}v5`;
+/* v6: cacheFirst sobre /visual-system/ conserva un fichero viejo bajo el mismo
+   nombre; subir la versión purga las pinturas de la portada anterior. */
+const CACHE_NAME = `${CACHE_PREFIX}v6`;
 const PROOF_ASSET = '/visual-system/tokens.css';
 
 const OFFLINE_PAGES = ['/en/oracle', '/es/oracle'];
@@ -23,8 +25,10 @@ function assetReferences(text, baseUrl) {
     }
   };
 
-  // Find this app's quoted HTML asset URLs and JS module references.
-  for (const match of text.matchAll(/["']([^"'<>\s]+\.(?:css|js|svg)(?:\?[^"'<>\s]*)?)["']/g)) {
+  // Find this app's quoted HTML asset URLs and JS module references. Only values that
+  // look like a path or URL: minified libraries (GSAP) carry quoted code fragments
+  // that end in ".svg" too, and fetching those made the whole precache fail.
+  for (const match of text.matchAll(/["']((?:\/|\.\.?\/|https?:)[^"'<>\s(){},;]+\.(?:css|js|svg)(?:\?[^"'<>\s]*)?)["']/g)) {
     add(match[1]);
   }
   // CSS also permits unquoted url(...) references.

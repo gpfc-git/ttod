@@ -1,0 +1,37 @@
+{
+  "generado_por": "recorte central de cada capa de 3136 px",
+  "franja": [
+    0.28,
+    0.72
+  ],
+  "capas": {
+    "fondo": {
+      "origen": "valle-fondo-3136.webp",
+      "huella_origen": "eb1c12ab83643d561693cd8a80d5af46b0cfdfb5c0b09cb28b452ccb2e60e531",
+      "recorte": "valle-fondo-movil.webp",
+      "ancho": 1380,
+      "kb": 19
+    },
+    "izquierda": {
+      "origen": "valle-izquierda-3136.webp",
+      "huella_origen": "bb1592eeb0420fb6665e89301e75378c5328e3cd92928a1a452018d9ff6e900a",
+      "recorte": "valle-izquierda-movil.webp",
+      "ancho": 1380,
+      "kb": 84
+    },
+    "derecha": {
+      "origen": "valle-derecha-3136.webp",
+      "huella_origen": "164b00f0b82d26eab73cced36431e4b65254e0bfeadd605ab9e251e0302993fa",
+      "recorte": "valle-derecha-movil.webp",
+      "ancho": 1380,
+      "kb": 23
+    },
+    "frente": {
+      "origen": "valle-frente-3136.webp",
+      "huella_origen": "81f3be63dc168ee2d586f83de3a435a3c421371af18634b5ced136238cd0125a",
+      "recorte": "valle-frente-movil.webp",
+      "ancho": 1380,
+      "kb": 155
+    }
+  }
+}

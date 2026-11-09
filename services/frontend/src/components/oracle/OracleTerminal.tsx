@@ -1,6 +1,8 @@
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+// `m` + `LazyMotion` con `domAnimation`: las mismas animaciones (opacidad, posición,
+// escala y salida) con la parte de framer-motion que las hace, no la librería entera.
+import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
   OfflineLogEntry,
@@ -58,8 +60,8 @@ export function appendChunk(segments: StreamSegment[], chunk: OracleResponseChun
 
 const COPY = {
   en: {
-    eyebrow: 'Local oracle', title: 'Ask the Tao', open: 'Open oracle', close: 'Close oracle',
-    placeholder: 'Bring a practice question — the Oracle answers with wisdom, not fixes…', submit: 'Ask', streaming: 'Listening…',
+    title: 'Ask the Tao', open: 'Open oracle', close: 'Close oracle',
+    placeholder: 'Your practice question…', submit: 'Ask', streaming: 'Listening…',
     preparing: 'Gathering wisdom…',
     grounded: 'Grounded in the TTOD corpus', creative: 'Oracular voice — no strong TTOD match',
     themes: 'Thematic anchors', tags: 'Nearby tags',
@@ -71,12 +73,14 @@ const COPY = {
     proposed: 'Saved as a draft proposal. The current human acceptance path is not yet operational.',
     proposalError: 'The draft proposal could not be saved.', retryError: 'A queued query could not be retried yet.',
     retry: 'Retry',
-    context: 'Context tag', hint: 'Alt+Shift+O opens · Ctrl/⌘+Enter asks · Esc closes',
+    context: 'Context tag',
     citations: 'Cited quotes', viewQuote: 'View quote', exchange: 'Exchange',
+    wait: 'A local model writes this, with no cloud behind it. The first word usually takes one to two minutes; then it writes slowly, word by word. You can keep reading meanwhile.',
+    glosses: 'Glosses', you: 'You asked', more: 'tags',
   },
   es: {
-    eyebrow: 'Oráculo local', title: 'Pregunta al Tao', open: 'Abrir oráculo', close: 'Cerrar oráculo',
-    placeholder: 'Trae una pregunta de práctica — el Oráculo responde con sabiduría, no con parches…', submit: 'Preguntar', streaming: 'Escuchando…',
+    title: 'Pregunta al Tao', open: 'Abrir oráculo', close: 'Cerrar oráculo',
+    placeholder: 'Tu pregunta de práctica…', submit: 'Preguntar', streaming: 'Escuchando…',
     preparing: 'Reuniendo sabiduría…',
     grounded: 'Fundamentado en el corpus TTOD', creative: 'Voz oracular — sin coincidencia fuerte en TTOD',
     themes: 'Anclas temáticas', tags: 'Etiquetas cercanas',
@@ -88,8 +92,10 @@ const COPY = {
     proposed: 'Guardada como borrador de propuesta. La vía actual de aceptación humana aún no está operativa.',
     proposalError: 'No se pudo guardar el borrador.', retryError: 'Todavía no se pudo reintentar una consulta guardada.',
     retry: 'Reintentar',
-    context: 'Etiqueta de contexto', hint: 'Alt+Mayús+O abre · Ctrl/⌘+Intro pregunta · Esc cierra',
+    context: 'Etiqueta de contexto',
     citations: 'Citas', viewQuote: 'Ver cita', exchange: 'Intercambio',
+    wait: 'Lo escribe un modelo local, sin nube detrás. La primera palabra suele tardar uno o dos minutos; después escribe despacio, palabra a palabra. Mientras, puedes seguir leyendo.',
+    glosses: 'Glosas', you: 'Preguntaste', more: 'etiquetas',
   },
 } as const;
 
@@ -110,13 +116,168 @@ function ModeLabel({ id, mode, copy }: { id: string; mode: OracleResponseChunk['
 
 function CitationLinks({ ids, locale, copy }: { ids: string[]; locale: Locale; copy: Copy }) {
   return (
-    <ul className="oracle-citations" aria-label={copy.citations}>
-      {ids.map((id) => (
-        <li key={id}><a href={`/${locale}/wisdom/${id}`} aria-label={`${copy.viewQuote} ${id}`}>{id}</a></li>
-      ))}
-    </ul>
+    <aside className="oracle-glosses">
+      <p className="oracle-glosses-title" aria-hidden="true">{copy.glosses}</p>
+      <ul className="oracle-citations" aria-label={copy.citations}>
+        {ids.map((id, index) => (
+          <li key={id}>
+            <a href={`/${locale}/wisdom/${id}`} aria-label={`${copy.viewQuote} ${id}`}>
+              <span className="oracle-gloss-n" aria-hidden="true">{toRoman(index + 1)}</span>{id}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 }
+
+const ROMAN = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
+const toRoman = (n: number) => ROMAN[n - 1] ?? String(n);
+
+// The wait is long (~90 s on CPU), so it is shown honestly: an incense stick that burns down over
+// that time and the seconds elapsed. Both are aria-hidden: the single role="status" line above it
+// is what assistive tech hears, once, instead of a ticking clock.
+function Incense({ note }: { note: string }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const timer = window.setInterval(() => setSeconds(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  return (
+    <div className="oracle-incense">
+      <div className="oracle-stick" aria-hidden="true"><span /></div>
+      <span className="oracle-clock" aria-hidden="true">{clock}</span>
+      <p className="oracle-wait">{note}</p>
+    </div>
+  );
+}
+
+/**
+ * El cuadro de la pregunta, aparte: lo que se escribe vive aquí, así que cada tecla
+ * solo vuelve a pintar este formulario y no el registro entero de intercambios
+ * (medido en jsdom con 12 intercambios: 40 pulsaciones costaban 292 ms de React).
+ */
+const Composer = memo(function Composer({ copy, busy, inputRef, onSend }: {
+  copy: Copy;
+  busy: boolean;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  onSend: (text: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const send = () => {
+    const trimmed = query.trim();
+    if (!trimmed || busy) return;
+    setQuery('');
+    onSend(trimmed);
+  };
+  return (
+    <form onSubmit={(event) => { event.preventDefault(); send(); }}>
+      <label className="sr-only" htmlFor="oracle-query">{copy.placeholder}</label>
+      <textarea
+        id="oracle-query" ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)}
+        onKeyDown={(event) => {
+          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+            event.preventDefault();
+            send();
+          }
+        }}
+        placeholder={copy.placeholder} rows={2} maxLength={8000} aria-keyshortcuts="Control+Enter Meta+Enter Alt+Shift+O"
+      />
+      <button type="submit" disabled={!query.trim() || busy}>{copy.submit}</button>
+    </form>
+  );
+});
+
+/**
+ * Un intercambio, memorizado: mientras llega una respuesta solo se vuelve a pintar
+ * el intercambio que cambia, no los anteriores, que ya están cerrados.
+ */
+const ExchangeView = memo(function ExchangeView({ exchange, index, copy, locale, reduceMotion, busy, onRetry, onPropose }: {
+  exchange: Exchange;
+  index: number;
+  copy: Copy;
+  locale: Locale;
+  reduceMotion: boolean | null;
+  busy: boolean;
+  onRetry: (exchange: Exchange) => void;
+  onPropose: (exchange: Exchange) => Promise<void>;
+}) {
+  return (
+    <m.article className="oracle-exchange" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+      {/* Task 4: a visually hidden heading names each turn, so past exchanges can be reached
+          and told apart by heading navigation. It sits outside the Task 2 live region. */}
+      <h2 className="sr-only">{copy.exchange} {index + 1}</h2>
+      {/* The question is carried on a banderole, the speech scroll of Renaissance painting. */}
+      <p className="oracle-query"><span className="sr-only">{copy.you}: </span><span className="oracle-ribbon">{exchange.query}</span></p>
+      {exchange.contextTag && <p className="oracle-context">{copy.context}: <code>{exchange.contextTag}</code></p>}
+      {/* Task 2: only the streamed answer is a live region (not the whole log), so the query echo,
+          status and notices are not re-announced. `polite` waits for the screen reader to finish
+          speaking instead of interrupting it; `aria-atomic="false"` announces only what each chunk
+          changed, never the whole accumulated answer; `aria-busy` marks it in progress while streaming. */}
+      <div
+        className="oracle-answer" aria-live="polite" aria-atomic="false"
+        aria-busy={exchange.state === 'preparing' || exchange.state === 'streaming'}
+      >
+      {exchange.segments.map((segment) => (
+        <div
+          key={segment.key} className={`oracle-segment oracle-${segment.mode}`}
+          role="group" aria-labelledby={`oracle-mode-${segment.key}`}
+        >
+          <ModeLabel id={`oracle-mode-${segment.key}`} mode={segment.mode} copy={copy} />
+          {(segment.themes?.length || segment.tags?.length) ? (
+            <div className="oracle-anchors">
+              {segment.themes?.length ? (
+                <p><em>{copy.themes}:</em> {segment.themes.map((theme) => <code key={theme}>{theme}</code>)}</p>
+              ) : null}
+              {/* The backend sends up to ~20 nearby tags: folded, so the answer comes first. */}
+              {segment.tags?.length ? (
+                <details>
+                  <summary>{copy.tags} · {segment.tags.length}</summary>
+                  {segment.tags.map((tag) => <code key={tag}>{tag}</code>)}
+                </details>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="oracle-text">{segment.parts.map((part, index) => <span key={index}>{part}</span>)}</p>
+          {segment.mode === 'grounded' && segment.citedQuoteIds?.length ? (
+            <CitationLinks ids={segment.citedQuoteIds} locale={locale} copy={copy} />
+          ) : null}
+        </div>
+      ))}
+      </div>
+      {/* Task 5: distinct from both idle and streaming, and never shown once a chunk (or an
+          error) has settled the exchange into another state. */}
+      {exchange.state === 'preparing' && (
+        <>
+          <p className="oracle-status oracle-preparing" role="status">{copy.preparing}</p>
+          <Incense note={copy.wait} />
+        </>
+      )}
+      {exchange.state === 'streaming' && <p className="oracle-status" role="status">{copy.streaming}</p>}
+      {/* Task 6: a hard failure is announced assertively and offers a manual way back in;
+          the offline-queue notice stays `status` since it is not a failure, just a wait. */}
+      {exchange.notice && (
+        <p className="oracle-notice" role={exchange.state === 'error' ? 'alert' : 'status'}>{exchange.notice}</p>
+      )}
+      {exchange.state === 'error' && (
+        <button type="button" className="oracle-retry" onClick={() => onRetry(exchange)} disabled={busy}>
+          {copy.retry}
+        </button>
+      )}
+      {exchange.state === 'complete' && exchange.segments.some((segment) => segment.mode === 'creative') && (
+        <div className="oracle-proposal">
+          <button type="button" onClick={() => void onPropose(exchange)} disabled={exchange.proposalState === 'saving' || exchange.proposalState === 'saved'}>
+            {exchange.proposalState === 'saving' ? copy.proposing : copy.propose}
+          </button>
+          {exchange.proposalState === 'saved' && <p role="status">{copy.proposed}</p>}
+          {exchange.proposalState === 'error' && <p role="alert">{copy.proposalError}</p>}
+        </div>
+      )}
+    </m.article>
+  );
+});
 
 const identifier = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
@@ -141,11 +302,14 @@ function historyFrom(exchanges: Exchange[]): string[] {
 export default function OracleTerminal({ locale }: Props) {
   const copy = COPY[locale];
   const reduceMotion = useReducedMotion();
+  // Abrir y cerrar como en main: el folio se esconde sin desmontarse, así que la pregunta
+  // a medio escribir sigue ahí al volver a abrirlo.
   const [open, setOpen] = useState(true);
-  const [query, setQuery] = useState('');
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const [syncing, setSyncing] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const shellRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const exchangesRef = useRef(exchanges);
   const syncingRef = useRef(false);
   const submittingRef = useRef(false);
@@ -290,8 +454,11 @@ export default function OracleTerminal({ locale }: Props) {
         event.preventDefault();
         setOpen(true);
         requestAnimationFrame(() => inputRef.current?.focus());
-      } else if (event.key === 'Escape' && open) {
+      } else if (event.key === 'Escape' && open && shellRef.current?.contains(document.activeElement)) {
+        // Only from inside the oracle, so Escape elsewhere on the page (a menu, a dialog) does not
+        // close it, and focus moves to the toggle instead of vanishing with the hidden folio.
         setOpen(false);
+        toggleRef.current?.focus();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -303,16 +470,44 @@ export default function OracleTerminal({ locale }: Props) {
     [exchanges],
   );
 
+  // Tells the sky shader that the chat is interactive, so it can start its continuous animation.
+  useEffect(() => {
+    document.documentElement.dataset.oraculoListo = '1';
+    window.dispatchEvent(new Event('oraculo:listo'));
+  }, []);
+
+  // While an answer streams, the page follows its last line, but only if the reader is already
+  // near it: someone who scrolled up to reread is never pulled back down.
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const end = endRef.current;
+    if (!busy || !end) return;
+    const top = end.getBoundingClientRect().top;
+    if (top > 0 && top < window.innerHeight * 1.5) end.scrollIntoView?.({ block: 'end' });
+  }, [busy, exchanges]);
+
+  // The sky (estilo/CieloRuyi + vuelo.ts) reads this flag so every loading state of the last
+  // message is visible in the scene too: 'pensando' (preparing: the pearl burns and the dragon
+  // coils above the folio), 'escribiendo' (streaming: steady glow, slower flight), 'en-cola'
+  // (queued offline) and 'apagado' (error): the pearl goes out. Complete clears it.
+  const lastState = exchanges[exchanges.length - 1]?.state;
+  useEffect(() => {
+    const root = document.documentElement;
+    const scene = { preparing: 'pensando', streaming: 'escribiendo', queued: 'en-cola', error: 'apagado' } as const;
+    const value = lastState && lastState !== 'complete' ? scene[lastState] : undefined;
+    if (value) root.dataset.oraculo = value;
+    else delete root.dataset.oraculo;
+  }, [lastState]);
+
   // Task 6: a hard failure (not an offline queue) gets a manual way back in, distinct from the
   // automatic reconnect flush that already handles the "unreachable" queued case. The retry
   // re-runs this exchange in place instead of appending a second card for the same question.
-  const retry = (exchange: Exchange) => {
+  const retry = useCallback((exchange: Exchange) => {
     if (busy) return;
     void sendPayload(exchange.payload, undefined, exchange.id);
-  };
+  }, [busy, sendPayload]);
 
-  const submit = async () => {
-    const trimmed = query.trim();
+  const submit = useCallback(async (trimmed: string) => {
     // `busy` comes from the last render; the ref also blocks a second submit fired before it re-renders.
     if (!trimmed || busy || submittingRef.current) return;
     submittingRef.current = true;
@@ -322,15 +517,15 @@ export default function OracleTerminal({ locale }: Props) {
       sessionHistory: historyFrom(exchangesRef.current),
       locale,
     };
-    setQuery('');
     try {
       await sendPayload(payload);
     } finally {
       submittingRef.current = false;
     }
-  };
+  }, [busy, locale, sendPayload]);
+  const send = useCallback((text: string) => { void submit(text); }, [submit]);
 
-  const propose = async (exchange: Exchange) => {
+  const propose = useCallback(async (exchange: Exchange) => {
     const creativeSegments = exchange.segments.filter((segment) => segment.mode === 'creative');
     const creativeAnswer = creativeSegments.map((segment) => segment.text).join('');
     if (!creativeAnswer || exchange.proposalState === 'saving') return;
@@ -354,109 +549,34 @@ export default function OracleTerminal({ locale }: Props) {
       await enqueueErrorReport(error instanceof Error ? error.message : String(error)).catch(() => undefined);
       updateExchange(exchange.id, (item) => ({ ...item, proposalState: 'error' }));
     }
-  };
+  }, [locale, updateExchange]);
 
   return (
-    <section className="oracle-shell" aria-label={copy.title}>
-      <button className="oracle-toggle" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        {open ? copy.close : copy.open}
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            className="oracle-terminal"
-            initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.99 }}
-            transition={{ duration: reduceMotion ? 0 : 0.22 }}
-          >
-            <header><span>{copy.eyebrow}</span><h1>{copy.title}</h1></header>
+    <LazyMotion features={domAnimation} strict>
+    <section ref={shellRef} className="oracle-shell" aria-label={copy.title}>
+          <button ref={toggleRef} className="oracle-toggle" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+            {open ? copy.close : copy.open}
+          </button>
+          <div className="oracle-terminal" hidden={!open}>
+            <header><h1>{copy.title}</h1></header>
+            {/* The composer is sticky inside this body only, so the bottom sheet never covers the title. */}
+            <div className="oracle-body">
             <div className="oracle-log">
               <AnimatePresence initial={false}>
                 {exchanges.map((exchange, index) => (
-                  <motion.article key={exchange.id} className="oracle-exchange" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
-                    {/* Task 4: a visually hidden heading names each turn, so past exchanges can be reached
-                        and told apart by heading navigation. It sits outside the Task 2 live region. */}
-                    <h2 className="sr-only">{copy.exchange} {index + 1}</h2>
-                    <p className="oracle-query"><strong>›</strong> {exchange.query}</p>
-                    {exchange.contextTag && <p className="oracle-context">{copy.context}: <code>{exchange.contextTag}</code></p>}
-                    {/* Task 2: only the streamed answer is a live region (not the whole log), so the query echo,
-                        status and notices are not re-announced. `polite` waits for the screen reader to finish
-                        speaking instead of interrupting it; `aria-atomic="false"` announces only what each chunk
-                        changed, never the whole accumulated answer; `aria-busy` marks it in progress while streaming. */}
-                    <div
-                      className="oracle-answer" aria-live="polite" aria-atomic="false"
-                      aria-busy={exchange.state === 'preparing' || exchange.state === 'streaming'}
-                    >
-                    {exchange.segments.map((segment) => (
-                      <div
-                        key={segment.key} className={`oracle-segment oracle-${segment.mode}`}
-                        role="group" aria-labelledby={`oracle-mode-${segment.key}`}
-                      >
-                        <ModeLabel id={`oracle-mode-${segment.key}`} mode={segment.mode} copy={copy} />
-                        {(segment.themes?.length || segment.tags?.length) ? (
-                          <p className="oracle-anchors">
-                            {segment.themes?.length ? (
-                              <><span>{copy.themes}:</span> {segment.themes.map((theme) => <code key={theme}>{theme}</code>)}{' '}</>
-                            ) : null}
-                            {segment.tags?.length ? (
-                              <><span>{copy.tags}:</span> {segment.tags.map((tag) => <code key={tag}>{tag}</code>)}</>
-                            ) : null}
-                          </p>
-                        ) : null}
-                        <p>{segment.parts.map((part, index) => <span key={index}>{part}</span>)}</p>
-                        {segment.mode === 'grounded' && segment.citedQuoteIds?.length ? (
-                          <CitationLinks ids={segment.citedQuoteIds} locale={locale} copy={copy} />
-                        ) : null}
-                      </div>
-                    ))}
-                    </div>
-                    {/* Task 5: distinct from both idle and streaming, and never shown once a chunk (or an
-                        error) has settled the exchange into another state. */}
-                    {exchange.state === 'preparing' && <p className="oracle-status oracle-preparing" role="status">{copy.preparing}</p>}
-                    {exchange.state === 'streaming' && <p className="oracle-status" role="status">{copy.streaming}</p>}
-                    {/* Task 6: a hard failure is announced assertively and offers a manual way back in;
-                        the offline-queue notice stays `status` since it is not a failure, just a wait. */}
-                    {exchange.notice && (
-                      <p className="oracle-notice" role={exchange.state === 'error' ? 'alert' : 'status'}>{exchange.notice}</p>
-                    )}
-                    {exchange.state === 'error' && (
-                      <button type="button" className="oracle-retry" onClick={() => retry(exchange)} disabled={busy}>
-                        {copy.retry}
-                      </button>
-                    )}
-                    {exchange.state === 'complete' && exchange.segments.some((segment) => segment.mode === 'creative') && (
-                      <div className="oracle-proposal">
-                        <button type="button" onClick={() => void propose(exchange)} disabled={exchange.proposalState === 'saving' || exchange.proposalState === 'saved'}>
-                          {exchange.proposalState === 'saving' ? copy.proposing : copy.propose}
-                        </button>
-                        {exchange.proposalState === 'saved' && <p role="status">{copy.proposed}</p>}
-                        {exchange.proposalState === 'error' && <p role="alert">{copy.proposalError}</p>}
-                      </div>
-                    )}
-                  </motion.article>
+                  <ExchangeView
+                    key={exchange.id} exchange={exchange} index={index} copy={copy} locale={locale}
+                    reduceMotion={reduceMotion} busy={busy} onRetry={retry} onPropose={propose}
+                  />
                 ))}
               </AnimatePresence>
               {syncing && <p className="oracle-status">{copy.syncing}</p>}
+              <div ref={endRef} className="oracle-end" aria-hidden="true" />
             </div>
-            <form onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-              <label className="sr-only" htmlFor="oracle-query">{copy.placeholder}</label>
-              <textarea
-                id="oracle-query" ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-                    event.preventDefault();
-                    void submit();
-                  }
-                }}
-                placeholder={copy.placeholder} rows={3} maxLength={8000}
-              />
-              <button type="submit" disabled={!query.trim() || busy}>{copy.submit}</button>
-            </form>
-            <p className="oracle-hint">{copy.hint}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Composer copy={copy} busy={busy} inputRef={inputRef} onSend={send} />
+            </div>
+          </div>
     </section>
+    </LazyMotion>
   );
 }

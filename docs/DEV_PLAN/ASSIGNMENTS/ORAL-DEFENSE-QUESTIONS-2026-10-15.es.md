@@ -22,7 +22,7 @@ Cada trío tiene tres focos:
 
 ## E1 — Contenido (`gontugithub`)
 
-*Aún abiertos y sin amend: #65 · #67 · #68. Tareas 7–8 (PR / revisión en módulo ajeno) **exentas**.*
+*Tips mergeados: #61–#68 (+ #43). Tareas 7–8 (PR / revisión en módulo ajeno) **exentas**.*
 
 1. **¿Por qué la proveniencia no puede vivir solo en el detalle?**  
    La tarea 5 pide licencia/fuente/proveniencia en el índice, en las facetas y en el detalle. Si solo aparece en el detalle, ¿qué ve mal quien solo hojea las tarjetas? Dad un ejemplo concreto.
@@ -37,7 +37,7 @@ Cada trío tiene tres focos:
 
 ## E2 — Grafo (`gpfc-git`)
 
-*Tareas 1–8 en `main` (#48 … #78). Tarea 9 (revisión de PR ajeno) **exenta**. Falta tip 10 (memo de decisión) si no está en el repo.*
+*Tareas 1–8 en `main` (#48 … #78). Tarea 9 **exenta**. Tarea 10: sin tip PR en el repo.*
 
 1. **`pushState` vs `replaceState`.**  
    En #71, al elegir un nodo o un tag usáis `pushState` (entra en el historial). Al corregir una URL inválida usáis `replaceState` (no ensucia el historial). Si *todo* fuera `pushState`, incluido limpiar un `?tag=basura` al cargar: ¿qué bug concreto vería el usuario al pulsar Atrás?

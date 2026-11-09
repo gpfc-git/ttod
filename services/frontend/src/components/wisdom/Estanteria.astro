@@ -1,0 +1,116 @@
+---
+/**
+ * El armario del corpus: el cuerpo de `/wisdom`.
+ *
+ * Antes esta vista era un muro de píldoras y luego un pasillo de estelas; hoy
+ * es la estantería donde el corpus está cosido en volúmenes (cartas
+ * animadas que parecen libros en 3D, que se abren y así recopilan mejor
+ * todo). Las tres rutas de faceta siguen leyéndose como pasillo:
+ * esta es la portada del armario, no el índice.
+ */
+import EmptyState from '../EmptyState.astro';
+import Libro from './Libro.astro';
+import Mazo from './Mazo.astro';
+import FondoEstudio from './FondoEstudio.astro';
+import '../../styles/movimiento.css';
+import type { WisdomEntry } from '../../types/domain';
+import type { Locale } from '../../content/wisdom';
+import { frequencies, labels } from '../../content/wisdom';
+import { rotuloNivel } from '../../content/bosque';
+import { copia, volumenes } from '../../content/estanteria';
+
+interface Props {
+  locale: Locale;
+  entries: WisdomEntry[];
+  failed: boolean;
+  /** Hay cookie de sesión: la tirada se pide a `/api/v1/wisdom/random`. */
+  sesion?: boolean;
+}
+
+const { locale, entries, failed, sesion = false } = Astro.props;
+const t = copia[locale];
+const copy = labels[locale];
+const armario = volumenes(entries, locale);
+const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI'];
+const niveles = frequencies(entries, 'level');
+// Seis etiquetas, las más cosidas: con las 306 del corpus esto volvía a ser la
+// nube de píldoras que esta vista vino a quitar.
+const etiquetas = frequencies(entries, 'tags')
+  .sort(([, a], [, b]) => b - a)
+  .slice(0, 6);
+---
+
+<FondoEstudio />
+
+<!-- El título y la entrada en un folio de papel, como el del oráculo: la
+     pintura de detrás nunca baja el contraste del texto. -->
+<header class="armario-entrada">
+  <span class="nube-ruyi" data-nube="41" aria-hidden="true"></span>
+  <h1 class="armario-titulo">{t.titulo}</h1>
+  <p class="armario-intro">{t.entrada}</p>
+  {!failed && entries.length > 0 && (
+    <p class="armario-recuento">{t.recuento(entries.length, armario.length)}</p>
+  )}
+</header>
+
+{failed ? (
+  <EmptyState variant="error" title={copy.errorTitle} message={copy.errorMessage} />
+) : entries.length === 0 ? (
+  <EmptyState title={copy.emptyTitle} message={copy.empty} />
+) : (
+  <>
+    <Mazo locale={locale} armario={armario} entries={entries} sesion={sesion} />
+
+    <h2 class="armario-subtitulo">{t.estanteTitulo}</h2>
+    <p class="armario-pista" aria-hidden="true">{t.pista}</p>
+    <div class="armario">
+      <div class="armario-balda">
+        {armario.map((volumen, i) => (
+          <Libro volumen={volumen} locale={locale} orden={ROMANOS[i] ?? String(i + 1)} />
+        ))}
+      </div>
+    </div>
+
+    <nav class="armario-facetas" aria-labelledby="armario-facetas-rotulo">
+      <h2 id="armario-facetas-rotulo">{t.facetas}</h2>
+      <p class="facetas-grupo">
+        <span class="facetas-rotulo">{t.porNivel}</span>
+        {niveles.map(([nivel, n]) => (
+          <a href={`/${locale}/wisdom/levels/${nivel}/`}>{rotuloNivel(nivel, locale)} <b>{n}</b></a>
+        ))}
+      </p>
+      <p class="facetas-grupo">
+        <span class="facetas-rotulo">{t.porEtiqueta}</span>
+        {etiquetas.map(([tag, n]) => (
+          <a href={`/${locale}/wisdom/tags/${tag}/`}>{tag} <b>{n}</b></a>
+        ))}
+      </p>
+      <slot name="acciones" />
+    </nav>
+
+    <p class="armario-credito">{t.credito}</p>
+  </>
+)}
+
+<script>
+  import { entintar } from '../estilo/letras';
+  // Las letras se entintan como en el oráculo, que entinta su título al
+  // llegar. Los títulos de más abajo no: a media tinta (oro al 15 %) pasaban
+  // por la pantalla ilegibles mientras se hacía scroll.
+  entintar(document.querySelector('.armario-titulo'), { retraso: .2 });
+  entintar(document.querySelector('.armario-intro'), { por: 'words', retraso: .5 });
+
+  // Lo demás entra al asomar (components/movimiento.ts): los folios suben y se
+  // asientan, la pila baja a la mesa, los libros de la balda se posan uno tras
+  // otro y las nubes ruyi se dibujan sobre la pintura.
+  import { alLlegar, asentar, subirLineas, nubesRuyi } from '../movimiento';
+  asentar(document.querySelector('.armario-entrada'), { y: 40 });
+  asentar(document.querySelector('.mazo-texto'), { y: 32 });
+  asentar(document.querySelector('.pila-escena'), { y: -40, rotar: -2 });
+  document.querySelectorAll('.armario-subtitulo, .armario-facetas h2').forEach((h) => subirLineas(h));
+  // Los libros de la balda se posan con una animación de CSS (compositor):
+  // moverlos con GSAP, trece volúmenes en 3D a la vez, daba fotogramas largos.
+  const balda = document.querySelector('.armario-balda');
+  alLlegar(balda, () => balda!.setAttribute('data-llega', ''));
+  nubesRuyi(document.querySelector('.armario-vista') ?? document);
+</script>

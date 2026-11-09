@@ -1,5 +1,6 @@
 ---
 import Page from '../../layouts/Page.astro';
+import { pideCorpus } from '../../lib/corpus.server';
 import type { WisdomEntry } from '../../types/domain';
 
 const locale = Astro.params.locale;
@@ -7,15 +8,13 @@ if (locale !== 'en' && locale !== 'es') return new Response(null, { status: 404 
 const copy = locale === 'es'
   ? { title: 'Una cita viva', back: 'Inicio', intro: 'Obtenida en directo del corpus gobernado.' }
   : { title: 'A live quote', back: 'Home', intro: 'Fetched live from the governed corpus.' };
-const backend = import.meta.env.BACKEND_URL ?? 'http://backend:8000';
-const response = await fetch(`${backend}/api/v1/wisdom/sample`, {
-  headers: { accept: 'application/json' }
-});
-if (!response.ok) {
-  throw new Error(`Backend quote request failed (${response.status})`);
-}
-const payload: unknown = await response.json();
-if (!Array.isArray(payload) || payload.length === 0) {
+// La misma copia del corpus que usa la portada (`lib/corpus.server.ts`): como mucho
+// un minuto de antigüedad y refrescada por detrás. Antes esta vista pedía
+// `/api/v1/wisdom/sample` en cada visita y su TTFB era el segundo del backend
+// (medido: 1,30-1,98 s); con la copia, milisegundos. Si el backend falla y no
+// hay copia, lanza igual que antes.
+const payload = await pideCorpus();
+if (payload.length === 0) {
   throw new Error('Backend returned no live wisdom entries');
 }
 const quote: WisdomEntry = payload.find((entry) => entry?.lang === locale) ?? payload[0];

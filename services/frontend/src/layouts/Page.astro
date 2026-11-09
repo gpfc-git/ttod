@@ -1,22 +1,31 @@
 ---
-interface Props { lang: 'en' | 'es'; title: string }
-const { lang, title } = Astro.props;
+interface Props {
+  lang: 'en' | 'es'; title: string; description?: string; overlayHeader?: boolean;
+  /** Fuentes que solo usa esta vista y conviene pedir ya (nombre del woff2 en /visual-system/fonts). */
+  fuentesExtra?: string[];
+}
+const { lang, title, description, overlayHeader = false, fuentesExtra = [] } = Astro.props;
 import '../styles/tokens.css';
+import Footer from '../components/Footer.astro';
 
 const nav = {
   en: {
     home: 'Home', wisdom: 'Wisdom', library: 'Library', graph: 'Graph', oracle: 'Oracle', docs: 'Docs',
     skip: 'Skip to content', switchTo: 'Español',
-    footer: 'A pedagogical wisdom database — instructor reference build.',
-    projectDocs: 'Project docs, teaching model & backlog',
+    menu: 'Menu',
   },
   es: {
     home: 'Inicio', wisdom: 'Sabiduría', library: 'Biblioteca', graph: 'Grafo', oracle: 'Oráculo', docs: 'Docs',
     skip: 'Saltar al contenido', switchTo: 'English',
-    footer: 'Una base de datos de sabiduría pedagógica — build de referencia del profesorado.',
-    projectDocs: 'Docs del proyecto, modelo docente y backlog',
+    menu: 'Menú',
   },
 }[lang];
+
+// Toda vista lleva descripción: sin ella el buscador y el compartir se inventan el resumen.
+const descripcionPorDefecto = lang === 'es'
+  ? 'TTOD, El Tao del Desarrollo: una base de datos de sabiduría pedagógica con citas gobernadas, su fuente y su nivel.'
+  : 'TTOD, The Tao of Development: a pedagogical wisdom database of governed quotes, each with its source and level.';
+const descripcion = description ?? descripcionPorDefecto;
 
 const otherLocale = lang === 'en' ? 'es' : 'en';
 const switchPath = '/' + otherLocale + Astro.url.pathname.replace(/^\/(en|es)/, '');
@@ -36,76 +45,231 @@ const links: Array<{ href: string; label: string }> = [
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="theme-color" content="#fbf8f1" />
+    <meta name="description" content={descripcion} />
 
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="icon" href="/visual-system/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/visual-system/fonts/Erode-Light.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/visual-system/fonts/Gambetta-Light.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/visual-system/fonts/Switzer-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    {/* Gambetta Regular es la letra del texto corrido de todas las vistas y no
+        estaba precargada: se descubría al leer el CSS y llegaba después del primer
+        pintado, así que el texto se recolocaba al cambiar de letra (en /docs a 390
+        empujaba el pie: CLS 0,154 en Lighthouse móvil). */}
+    <link rel="preload" href="/visual-system/fonts/Gambetta-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    {fuentesExtra.map((f) => <link rel="preload" href={`/visual-system/fonts/${f}`} as="font" type="font/woff2" crossorigin />)}
     <link rel="stylesheet" href="/visual-system/tokens.css" />
     <link rel="stylesheet" href="/visual-system/backgrounds.css" />
 
     <title>{title}</title>
     <style>
-      :root { color-scheme: light; font-family: var(--ttod-font-body); }
-      body { margin: 0; color: var(--ttod-color-ink); background-color: var(--ttod-color-paper); line-height: 1.6; }
+      :root { color-scheme: light; font-family: var(--ttod-font-body); --ttod-header-height: 4.25rem; --ttod-cabecera-flujo: 61px; }
+      body {
+        margin: 0;
+        color: var(--ttod-color-ink);
+        background-color: var(--ttod-color-paper);
+        font-size: var(--ttod-text-base);
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* El fondo de cada vista llega hasta arriba, por detrás de la cabecera
+         flotante. La cabecera es pegajosa y ocupa 61 px en el flujo (medido a
+         390, 768 y 1440): encima de la primera sección queda el papel del
+         cuerpo, que no se nota sobre una vista de papel pero sí sobre una oscura
+         (en /graph era una barra clara sobre el negro). La vista que lo necesita
+         declara en su primera sección `--ttod-banda-arriba` con el tono de su
+         canto de arriba, y esta sombra sin desenfoque lo pinta en esos 61 px.
+         Una sombra no ocupa sitio: ni el contenido ni las alturas se mueven
+         (comprobado: posiciones de títulos y párrafos iguales en las 8 vistas a
+         390 y 1440). Va en `:where()`: si la sección ya tiene su propia sombra,
+         gana la suya. */
+      :global(:where(#ttod-main > :nth-child(1 of :not(script, style, link, template, astro-island)), #ttod-main > astro-island:nth-child(1 of :not(script, style, link, template)) > :first-child)) {
+        box-shadow: 0 calc(-1 * var(--ttod-cabecera-flujo)) 0 0 var(--ttod-banda-arriba, transparent);
+      }
       .ttod-skip-link {
-        position: absolute; left: -999px; top: 0; z-index: 30;
-        padding: 0.5rem 1rem; background: var(--ttod-color-accent, #b0522d); color: #fff;
+        position: absolute; left: -999px; top: 0; z-index: 40;
+        padding: 0.5rem 1rem; background: var(--ttod-color-ink); color: var(--ttod-color-paper);
       }
       .ttod-skip-link:focus { left: 0.5rem; top: 0.5rem; }
+
+      /* --- Cabecera: pastilla de papel flotante y centrada, como la navbar de
+         la referencia del valle. Legible
+         sobre cualquier capa: papel sólido con desenfoque, nunca degradados. --- */
       .ttod-site-header {
-        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-        gap: 1rem; padding: 1rem 1.5rem; font-family: ui-sans-serif, system-ui, sans-serif;
-        border-bottom: 1px solid var(--ttod-color-line, #8f8068);
+        position: sticky; top: clamp(.6rem, 1.8vh, 1rem); z-index: 30;
+        display: flex; align-items: center; gap: clamp(.9rem, 2vw, 1.6rem);
+        width: fit-content; max-width: calc(100vw - 1.5rem);
+        margin-inline: auto;
+        padding: .45rem .5rem .45rem 1.15rem;
+        border-radius: 999px;
+        background: rgb(var(--ttod-paper-rgb) / .94);
+        backdrop-filter: blur(14px) saturate(1.05);
+        border: 1px solid rgb(27 23 16 / .14);
+        box-shadow: 0 10px 30px -18px rgb(27 23 16 / .55), 0 2px 8px -5px rgb(27 23 16 / .3);
+        font-family: var(--ttod-font-ui);
+        transition: box-shadow .4s ease, transform .35s cubic-bezier(.2, .7, .3, 1);
       }
-      .ttod-site-header a { color: inherit; }
-      .ttod-brand { font-weight: 700; text-decoration: none; }
-      .ttod-site-nav { display: flex; flex-wrap: wrap; gap: 1rem; }
-      .ttod-site-nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 3px; }
-      .ttod-lang-switch { font-size: 0.9rem; }
-      main { max-width: 48rem; margin: 0 auto; padding: 2.5rem 1.5rem; }
-      nav { display: flex; gap: 1rem; font-family: ui-sans-serif, system-ui, sans-serif; }
-      article { border-inline-start: .25rem solid var(--ttod-color-accent); margin-block: 2rem; padding-inline: 1.5rem; }
-      .meta { font-family: ui-sans-serif, system-ui, sans-serif; font-size: .9rem; opacity: .8; }
-      .ttod-site-footer {
-        margin-top: 3rem; padding: 1.5rem; font-family: ui-sans-serif, system-ui, sans-serif;
-        font-size: 0.85rem; opacity: 0.8; border-top: 1px solid var(--ttod-color-line, #8f8068);
-        max-width: 48rem; margin-inline: auto;
+      /* Al bajar, la pastilla se aparta y deja la pantalla entera al contenido
+         (a 390 tapaba la línea que estabas leyendo); al subir vuelve sola.
+         Con el menú abierto o con el foco dentro no se va a ninguna parte. */
+      .ttod-site-header[data-oculta]:not([data-open]):not(:focus-within) {
+        transform: translateY(calc(-100% - 1.6rem));
+        /* Apartada del todo: fuera de pantalla no se lee ni se pulsa, así que
+           tampoco se anuncia ni se mide. El cambio espera a que termine el
+           viaje, para que la ida y la vuelta se sigan viendo. Quien llega con
+           el teclado la devuelve (abajo, en el guion). */
+        visibility: hidden;
+        transition: transform .35s cubic-bezier(.2, .7, .3, 1), visibility 0s .35s;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ttod-site-header { transition: none; }
+      }
+      .ttod-site-header[data-scrolled] {
+        box-shadow: 0 14px 34px -16px rgb(27 23 16 / .6), 0 2px 8px -5px rgb(27 23 16 / .3);
+      }
+      .ttod-site-header a { color: inherit; text-decoration: none; }
+
+      /* Todo lo que se toca mide 44 px de alto: el pulgar no acierta en 25.
+         El relleno vertical lo da la propia pastilla, no una caja visible. */
+      .ttod-brand { display: flex; align-items: baseline; gap: var(--ttod-space-2); margin-inline-end: auto; padding-block: .6rem; }
+      .ttod-brand-mark {
+        font-family: var(--ttod-font-body); font-size: 1.5rem; line-height: 1;
+        color: var(--ttod-color-seal);
+      }
+      .ttod-brand-word {
+        font-size: var(--ttod-text-ui); letter-spacing: var(--ttod-tracking-ui); text-transform: uppercase;
+        font-weight: 500;
       }
 
-      #ttod-network-boundary {
-        padding: 0.5rem 1.5rem;
-        font-family: ui-sans-serif, system-ui, sans-serif;
+      .ttod-site-nav { display: flex; flex-wrap: wrap; gap: clamp(.8rem, 1.8vw, 1.6rem); }
+      .ttod-site-nav a {
+        position: relative; padding-block: .3rem;
+        font-size: var(--ttod-text-ui); letter-spacing: .14em; text-transform: uppercase;
+        font-weight: 500;
+        color: #4b4232;
+        transition: color .25s ease;
       }
+      /* La subrayado crece desde la izquierda, como un trazo de pincel. */
+      .ttod-site-nav a::after {
+        content: ""; position: absolute; inset-inline: 0; bottom: 0;
+        height: 1px; background: var(--ttod-color-seal);
+        transform: scaleX(0); transform-origin: left;
+        transition: transform .35s cubic-bezier(.2, .7, .3, 1);
+      }
+      .ttod-site-nav a:hover { color: var(--ttod-color-ink); }
+      .ttod-site-nav a:hover::after { transform: scaleX(1); }
+      .ttod-site-nav a[aria-current="page"] { color: var(--ttod-color-ink); }
+      .ttod-site-nav a[aria-current="page"]::after { transform: scaleX(1); }
+
+      .ttod-nav-toggle {
+        display: none; align-items: center; gap: .5rem; min-height: 44px;
+        padding: .4rem .9rem; border: 1px solid var(--ttod-color-line-subtle); border-radius: 999px;
+        background: rgb(var(--ttod-paper-rgb) / .7); color: inherit; font: inherit;
+        font-size: var(--ttod-text-ui); letter-spacing: var(--ttod-tracking-ui); text-transform: uppercase; cursor: pointer;
+      }
+
+      /* La lengua en pastilla de tinta, el remate derecho de la cápsula
+         (el papel de «Login» en la referencia, con nuestro contenido real). */
+      .ttod-lang-switch {
+        display: inline-flex; align-items: center; min-height: 44px;
+        font-size: var(--ttod-text-ui); letter-spacing: .1em; text-transform: uppercase;
+        font-weight: 500;
+        padding: .5rem 1.05rem;
+        border-radius: 999px;
+        background: var(--ttod-color-ink);
+        transition: background-color .3s ease;
+      }
+      .ttod-site-header .ttod-lang-switch { color: var(--ttod-color-paper); }
+      .ttod-lang-switch:hover { background-color: #000; }
+
+      /* El estado de red solo habla cuando hay algo que decir. «En línea» es lo
+         normal: no ocupa sitio en la navegación del visitante, pero sigue en la
+         región viva para quien usa lector de pantalla. Sin conexión sí se ve. */
+      #ttod-network-boundary {
+        margin: 0; font-family: var(--ttod-font-ui);
+        font-size: var(--ttod-text-ui); letter-spacing: .14em; text-transform: uppercase;
+        font-weight: 500;
+        color: var(--ttod-color-seal);
+      }
+      /* Fuera de la pantalla, no borrado: el lector de pantalla sigue leyendo el
+         estado en su región viva, y la navegación del visitante no carga con una
+         palabra que no le dice nada mientras todo va bien. */
+      #ttod-network-boundary:not([data-state='offline']) {
+        position: absolute; left: -9999px; top: 0; width: auto; height: auto;
+        overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+      }
+      #ttod-network-boundary[data-state='offline'] {
+        display: inline-flex; align-items: center; min-height: 44px;
+      }
+      #ttod-network-boundary[data-state='offline']::before {
+        content: ""; display: inline-block; width: .4rem; height: .4rem; margin-inline-end: .4rem;
+        border-radius: 50%; background: currentColor;
+      }
+
+      @media (max-width: 52rem) {
+        .ttod-site-header[data-collapsible] { flex-wrap: wrap; row-gap: var(--ttod-space-3); gap: .7rem; width: calc(100vw - 1.5rem); justify-content: flex-end; }
+        .ttod-site-header[data-collapsible] .ttod-brand { margin-inline-end: auto; }
+        .ttod-site-header[data-collapsible] .ttod-nav-toggle { display: inline-flex; order: 1; }
+        .ttod-site-header[data-collapsible] .ttod-lang-switch { order: 3; padding: .42rem .8rem; }
+        .ttod-site-header[data-collapsible] .ttod-site-nav { display: none; order: 5; width: 100%; flex-direction: column; gap: var(--ttod-space-4); padding: var(--ttod-space-4) .65rem var(--ttod-space-3); }
+        /* Abierta, la pastilla crece en tarjeta redondeada; sigue siendo papel sólido. */
+        .ttod-site-header[data-collapsible][data-open] { border-radius: 1.5rem; }
+        .ttod-site-header[data-collapsible][data-open] .ttod-site-nav { display: flex; }
+        /* En la columna cada enlace es una fila que el pulgar acierta: 44 px. */
+        .ttod-site-header[data-collapsible] .ttod-site-nav a {
+          display: flex; align-items: center; min-height: 44px;
+          padding-block: .5rem; font-size: .95rem; letter-spacing: .1em;
+        }
+        /* Sin conexión la palabra se encoge pero no desaparece: un punto suelto
+           entre «MENÚ» y «ENGLISH» no le dice nada a quien mira. */
+        #ttod-network-boundary[data-state='offline'] { order: 2; font-size: .75rem; letter-spacing: .04em; }
+      }
+
     </style>
+    <!-- Sin JS no hay botón que despliegue nada, así que la navegación se queda
+         a la vista: es la excepción, y aquí la paga solo quien la necesita.
+         Antes era al revés —el guion ponía `data-collapsible` al arrancar— y a
+         390 px eso significaba pintar la barra entera (223 px) hasta los 3,8 s
+         y plegarla de golpe a 61: un tirón de 155 px en plena lectura, medido
+         en 0,19 de CLS en todas las vistas. -->
+    <noscript><style>
+      @media (max-width: 52rem) {
+        .ttod-site-header[data-collapsible] .ttod-site-nav { display: flex; }
+        .ttod-site-header[data-collapsible] .ttod-nav-toggle { display: none; }
+      }
+    </style></noscript>
   </head>
   <body class="ttod-bg-river">
     <a class="ttod-skip-link" href="#ttod-main">{nav.skip}</a>
-    <header class="ttod-site-header">
-      <a class="ttod-brand" href={`/${lang}/`}>道 TTOD</a>
-      <nav class="ttod-site-nav" aria-label={lang === 'es' ? 'Navegación principal' : 'Main navigation'}>
+    <header class="ttod-site-header" id="ttod-site-header" data-collapsible>
+      <a class="ttod-brand" href={`/${lang}/`}>
+        <span class="ttod-brand-mark" aria-hidden="true">道</span>
+        <span class="ttod-brand-word">TTOD</span>
+      </a>
+      <button class="ttod-nav-toggle" type="button" aria-expanded="false" aria-controls="ttod-site-nav">{nav.menu}</button>
+      <nav class="ttod-site-nav" id="ttod-site-nav" aria-label={lang === 'es' ? 'Navegación principal' : 'Main navigation'}>
         {links.map((link) => (
           <a href={link.href} aria-current={Astro.url.pathname === link.href ? 'page' : undefined}>{link.label}</a>
         ))}
       </nav>
+      <p
+        id="ttod-network-boundary"
+        class="ttod-sr-only-cuando-online"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-state="unknown"
+        data-online-label={lang === 'es' ? 'En línea' : 'Online'}
+        data-offline-label={lang === 'es' ? 'Sin conexión' : 'Offline'}
+      >
+        {lang === 'es' ? 'Comprobando conexión…' : 'Checking connection…'}
+      </p>
       <a class="ttod-lang-switch" href={switchPath} hreflang={otherLocale}>{nav.switchTo}</a>
     </header>
-    <p
-      id="ttod-network-boundary"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      data-state="unknown"
-      data-online-label={lang === 'es' ? 'En línea' : 'Online'}
-      data-offline-label={lang === 'es' ? 'Sin conexión' : 'Offline'}
-    >
-      {lang === 'es' ? 'Comprobando conexión…' : 'Checking connection…'}
-    </p>
     <div id="ttod-main">
       <slot />
     </div>
-    <footer class="ttod-site-footer">
-      <p>{nav.footer} © Rubén Vega Balbás · CC BY-NC-SA 4.0 (content) · MIT (code)</p>
-      <p><a href={lang === 'es' ? '/project-docs/es/' : '/project-docs/'}>{nav.projectDocs}</a></p>
-    </footer>
+    <Footer lang={lang} />
     <script>
       const boundary = document.getElementById('ttod-network-boundary');
 
@@ -128,6 +292,97 @@ const links: Array<{ href: string; label: string }> = [
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch((error) => {
           console.error('Service worker registration failed:', error);
+        });
+      }
+    </script>
+    <script>
+      const header = document.getElementById('ttod-site-header');
+      const toggle = header?.querySelector<HTMLButtonElement>('.ttod-nav-toggle');
+
+      if (header && toggle) {
+        // `data-collapsible` ya viene en el HTML del servidor (y el caso sin JS
+        // lo cubre el `<noscript>` del `<head>`): la barra nace plegada y no hay
+        // nada que recolocar cuando este guion arranca.
+
+        // Todo lo que se abre se cierra por las tres vías: el propio botón,
+        // Escape y tocando fuera. Y mientras está abierto, el tabulador no se
+        // escapa por detrás del panel —debajo hay página, y tabular a lo que
+        // está tapado es tabular a ciegas—.
+        const abierto = () => header.hasAttribute('data-open');
+        const cerrar = (devolverFoco: boolean) => {
+          if (!abierto()) return;
+          header.removeAttribute('data-open');
+          toggle.setAttribute('aria-expanded', 'false');
+          // Con Escape el foco vuelve al botón: quien cerró con el teclado
+          // tiene que seguir desde donde estaba, no desde el principio.
+          if (devolverFoco) toggle.focus();
+        };
+        const abrir = () => {
+          header.dataset.open = '';
+          toggle.setAttribute('aria-expanded', 'true');
+        };
+        toggle.addEventListener('click', () => (abierto() ? cerrar(false) : abrir()));
+
+        // Lo que se puede enfocar dentro de la pastilla, en el orden del
+        // documento y solo lo que de verdad se ve.
+        const focoDentro = () =>
+          [...header.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')].filter(
+            (el) => el.getClientRects().length > 0
+          );
+
+        document.addEventListener('keydown', (ev) => {
+          if (!abierto()) return;
+          if (ev.key === 'Escape') {
+            cerrar(true);
+            return;
+          }
+          if (ev.key !== 'Tab') return;
+          const foco = focoDentro();
+          if (!foco.length) return;
+          const primero = foco[0];
+          const ultimo = foco[foco.length - 1];
+          const activo = document.activeElement;
+          if (!ev.shiftKey && activo === ultimo) {
+            ev.preventDefault();
+            primero.focus();
+          } else if (ev.shiftKey && activo === primero) {
+            ev.preventDefault();
+            ultimo.focus();
+          } else if (activo instanceof HTMLElement && !header.contains(activo)) {
+            // El foco ya estaba fuera (venía de la página): entra al panel.
+            ev.preventDefault();
+            primero.focus();
+          }
+        });
+
+        // Con el dedo y con el ratón: `pointerdown` para que cierre al tocar,
+        // no al soltar.
+        document.addEventListener('pointerdown', (ev) => {
+          if (!abierto()) return;
+          const destino = ev.target;
+          if (destino instanceof Node && header.contains(destino)) return;
+          cerrar(false);
+        });
+      }
+
+      if (header) {
+        let anterior = window.scrollY;
+        const onScroll = () => {
+          const y = window.scrollY;
+          if (y > 24) header.dataset.scrolled = '';
+          else header.removeAttribute('data-scrolled');
+
+          // Umbral de 6 px: el rebote del scroll en móvil no debe hacerla parpadear.
+          if (y > 200 && y > anterior + 6) header.dataset.oculta = '';
+          else if (y < anterior - 6 || y <= 200) header.removeAttribute('data-oculta');
+          anterior = y;
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        // Apartada no puede significar inalcanzable: al primer tabulador la
+        // pastilla vuelve, y el foco entra en ella como en cualquier página.
+        window.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Tab') header.removeAttribute('data-oculta');
         });
       }
     </script>

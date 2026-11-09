@@ -1,0 +1,98 @@
+---
+/**
+ * Una sola puerta de filtro, cerrada por defecto (Poetry Foundation, medida a
+ * 390 px el 17 oct). Antes había cuatro bloques de píldoras ocupando la
+ * pantalla entera antes de llegar a un solo aforismo.
+ *
+ * Dentro, las tres puertas del bosque —sección, nivel y etiqueta— como listas
+ * con filete y su recuento. Sin JavaScript: es un `<details>` nativo.
+ */
+import type { WisdomEntry } from '../../types/domain';
+import type { Locale } from '../../content/wisdom';
+import { frequencies } from '../../content/wisdom';
+import { copia, rotuloNivel, rotuloSeccion, TAGS_EN_LA_PUERTA } from '../../content/bosque';
+
+interface Props {
+  /** El corpus entero: los recuentos se cuentan sobre todo, no sobre lo filtrado. */
+  todas: WisdomEntry[];
+  locale: Locale;
+  /** La faceta por la que se entró, si se entró por una. */
+  activa?: { tipo: 'sections' | 'levels' | 'tags'; valor: string };
+  /** Abierta de par en par cuando ya hay un filtro puesto: se ve por dónde entraste. */
+  abierta?: boolean;
+}
+
+const { todas, locale, activa, abierta = false } = Astro.props;
+const t = copia[locale];
+
+const secciones = frequencies(todas, 'section');
+const niveles = frequencies(todas, 'level');
+const etiquetas = frequencies(todas, 'tags');
+// 306 etiquetas no caben en una puerta: entran las más grabadas y se dice
+// cuántas son en total. Las demás se alcanzan desde la propia estela.
+const masGrabadas = [...etiquetas].sort(([, a], [, b]) => b - a).slice(0, TAGS_EN_LA_PUERTA);
+// La etiqueta por la que entraste está siempre en la puerta, aunque sea de las
+// que solo grabaron una vez: si no, el filtro puesto no se ve por ninguna parte.
+const entrada = activa?.tipo === 'tags' ? etiquetas.find(([valor]) => valor === activa.valor) : undefined;
+const etiquetasVisibles = entrada && !masGrabadas.some(([valor]) => valor === entrada[0])
+  ? [entrada, ...masGrabadas]
+  : masGrabadas;
+
+const actual = (tipo: Props['activa'] extends undefined ? never : 'sections' | 'levels' | 'tags', valor: string) =>
+  activa && activa.tipo === tipo && activa.valor === valor ? 'page' : undefined;
+---
+
+<details class="puerta" open={abierta}>
+  <summary>
+    <span>{t.filtrar}</span>
+    <span class="puerta-signo" aria-hidden="true"></span>
+  </summary>
+  <div class="puerta-dentro">
+    <p class="puerta-ayuda">{t.filtrarAyuda}</p>
+
+    <section class="faceta-grupo">
+      <h2>{t.secciones}</h2>
+      <p>{t.seccionesAyuda(secciones.length)}</p>
+      <ul class="faceta-lista">
+        {secciones.map(([valor, cuenta]) => (
+          <li>
+            <a href={`/${locale}/wisdom/sections/${valor}/`} aria-current={actual('sections', valor)}>
+              <span class="faceta-nombre">{rotuloSeccion(valor, locale)}</span>
+              <span class="faceta-cuenta">{cuenta}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="faceta-grupo">
+      <h2>{t.niveles}</h2>
+      <p>{t.nivelesAyuda(niveles.length)}</p>
+      <ul class="faceta-lista">
+        {niveles.map(([valor, cuenta]) => (
+          <li>
+            <a href={`/${locale}/wisdom/levels/${valor}/`} aria-current={actual('levels', valor)}>
+              <span class="faceta-nombre">{rotuloNivel(valor, locale)}</span>
+              <span class="faceta-cuenta">{cuenta}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="faceta-grupo">
+      <h2>{t.etiquetas}</h2>
+      <p>{t.etiquetasAyuda(etiquetasVisibles.length, etiquetas.length)}</p>
+      <ul class="faceta-lista">
+        {etiquetasVisibles.map(([valor, cuenta]) => (
+          <li>
+            <a href={`/${locale}/wisdom/tags/${valor}/`} aria-current={actual('tags', valor)}>
+              <span class="faceta-nombre">{valor}</span>
+              <span class="faceta-cuenta">{cuenta}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+</details>

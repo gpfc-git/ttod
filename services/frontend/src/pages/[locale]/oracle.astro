@@ -1,15 +1,49 @@
 ---
+import CieloRuyi from '../../components/estilo/CieloRuyi.astro';
 import OracleTerminal from '../../components/oracle/OracleTerminal';
 import Page from '../../layouts/Page.astro';
 
 const locale = Astro.params.locale;
 if (locale !== 'en' && locale !== 'es') return new Response(null, { status: 404 });
 const title = locale === 'es' ? 'Oráculo · 道 El Tao del Desarrollo (TTOD)' : 'Oracle · 道 The Tao of Development (TTOD)';
-const home = locale === 'es' ? 'Inicio' : 'Home';
 ---
 <Page lang={locale} title={title}>
-  <nav><a href={`/${locale}/`}>{home}</a></nav>
-  <main>
-    <OracleTerminal locale={locale} client:load />
+  <main class="oraculo">
+    <CieloRuyi dragon rodea=".oracle-terminal" piensa />
+    <section class="oraculo-chat">
+      <OracleTerminal locale={locale} client:load />
+    </section>
   </main>
 </Page>
+
+<script>
+  import { entintar } from '../../components/estilo/letras';
+  // El título del folio se entinta al llegar; la banderola de cada pregunta nueva, cuando el
+  // oráculo la escribe.
+  const empezar = () => {
+    entintar(document.querySelector('.oracle-terminal h1'), { retraso: .2 });
+    const log = document.querySelector('.oracle-log');
+    if (log) new MutationObserver((cambios) => {
+      for (const c of cambios) c.addedNodes.forEach((n) => {
+        if (n instanceof HTMLElement) entintar(n.querySelector('.oracle-ribbon'), { por: 'words' });
+      });
+    }).observe(log, { childList: true });
+  };
+  // Después de hidratar el chat (React marca data-oraculo-listo), para no pelear con React.
+  if (document.documentElement.dataset.oraculoListo) empezar();
+  else addEventListener('oraculo:listo', empezar, { once: true });
+</script>
+
+<style is:global>
+  /* El oráculo en medio del cielo (el oráculo, en medio): el folio
+     (oracle-terminal.css) se centra en la primera pantalla y el dragón vuela a su alrededor, sin
+     pasar nunca por detrás. El folio es papel opaco: nada baja el contraste del texto. */
+  html:has(.oraculo) { scroll-padding-top: 6rem; }
+  .oraculo { position: relative; }
+  .oraculo-chat {
+    position: relative; z-index: 1; max-width: 60rem; margin: 0 auto; box-sizing: border-box;
+    min-height: calc(100svh - 5rem); display: grid; align-content: center; padding: 3rem 1rem 3rem;
+  }
+  @media (max-width: 40rem) { .oraculo-chat { padding: 0; align-content: end; } }
+
+</style>

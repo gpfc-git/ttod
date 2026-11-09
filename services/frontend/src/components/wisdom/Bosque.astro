@@ -1,0 +1,121 @@
+---
+/**
+ * El bosque de estelas: el cuerpo de `/wisdom` y de sus tres facetas.
+ *
+ * Las cuatro rutas usan este mismo pasillo; la diferencia es con qué estelas
+ * entra y qué puerta queda marcada. Antes cada una repetía su propia rejilla
+ * de tarjetas.
+ */
+import EmptyState from '../EmptyState.astro';
+import Estela from './Estela.astro';
+import PuertaDeFiltro from './PuertaDeFiltro.astro';
+import type { WisdomEntry } from '../../types/domain';
+import type { Locale } from '../../content/wisdom';
+import { labels } from '../../content/wisdom';
+import { copia, esClaveOrden, ORDENES, ordenar, pasilloPedido, POR_PASILLO } from '../../content/bosque';
+
+interface Props {
+  locale: Locale;
+  /** El corpus entero del idioma: de aquí salen los recuentos de la puerta. */
+  todas: WisdomEntry[];
+  /** Lo que recorre este pasillo: todo el corpus, o la faceta pedida. */
+  entries: WisdomEntry[];
+  failed: boolean;
+  activa?: { tipo: 'sections' | 'levels' | 'tags'; valor: string };
+  /** El titular de la vista: lo pone la ruta, porque es el `<h1>` de la página. */
+  titulo: string;
+  /** La frase de entrada; en las facetas, la que explica por dónde se entró. */
+  intro: string;
+}
+
+const { locale, todas, entries, failed, activa, titulo, intro } = Astro.props;
+const t = copia[locale];
+const copy = labels[locale];
+
+const bruto = Astro.url.searchParams.get('orden');
+const orden = esClaveOrden(bruto) ? bruto : 'corpus';
+const ordenadas = ordenar(entries, orden);
+
+const total = ordenadas.length;
+const pasillos = Math.max(1, Math.ceil(total / POR_PASILLO));
+const pasillo = pasilloPedido(Astro.url.searchParams.get('p'), total);
+const desde = (pasillo - 1) * POR_PASILLO;
+const tramo = ordenadas.slice(desde, desde + POR_PASILLO);
+
+// La estela mayor es la primera del tramo: la que recibe al que entra, con su
+// texto escrito con tinta al llegar. El resto forman el pasillo.
+const [mayor, ...resto] = tramo;
+
+const secciones = new Set(todas.map((e) => e.section)).size;
+const mostradas = total === 0 ? '0' : `${desde + 1}–${desde + tramo.length}`;
+const deOtroPasillo = (n: number) => {
+  const url = new URL(Astro.url);
+  url.searchParams.set('p', String(n));
+  if (orden === 'corpus') url.searchParams.delete('orden');
+  else url.searchParams.set('orden', orden);
+  return url.pathname + url.search;
+};
+const folio = (i: number) => String(desde + i + 1).padStart(String(total).length, '0');
+---
+
+<header class="bosque-entrada">
+  <h1 class="bosque-titulo">{titulo}</h1>
+  <p class="bosque-intro">{intro}</p>
+  {!failed && total > 0 && (
+    <p class="bosque-recuento">
+      <span>{activa ? t.recuentoFaceta(mostradas, total, todas.length) : t.recuento(mostradas, total, secciones)}</span>
+      <b>{t.pasilloDe(pasillo, pasillos)}</b>
+    </p>
+  )}
+</header>
+
+{failed ? (
+  <EmptyState variant="error" title={copy.errorTitle} message={copy.errorMessage} />
+) : total === 0 ? (
+  <EmptyState
+    title={activa ? copy.noMatchesTitle : copy.emptyTitle}
+    message={activa ? copy.noMatches : copy.empty}
+    action={activa ? { label: copy.back, href: `/${locale}/wisdom/` } : undefined}
+  />
+) : (
+  <>
+    <div class="bosque-mandos">
+      <PuertaDeFiltro todas={todas} locale={locale} activa={activa} abierta={Boolean(activa)} />
+      <form class="orden" method="get">
+        <label for="orden-del-bosque">{t.ordenar}</label>
+        <select id="orden-del-bosque" name="orden">
+          {ORDENES.map((o) => (
+            <option value={o.clave} selected={o.clave === orden}>{o[locale]}</option>
+          ))}
+        </select>
+        <button type="submit">{t.aplicar}</button>
+      </form>
+    </div>
+
+    <div class="estela-mayor">
+      <Estela entry={mayor} locale={locale} folio={folio(0)} de={total} destacada />
+    </div>
+
+    {resto.length > 0 && (
+      <ol class="pasillo">
+        {resto.map((entry, i) => (
+          <li class="estela">
+            <Estela entry={entry} locale={locale} folio={folio(i + 1)} de={total} />
+          </li>
+        ))}
+      </ol>
+    )}
+
+    <footer class="bosque-salida">
+      <p>
+        {desde + tramo.length >= total ? t.finBosque : t.finPasillo(desde + tramo.length, total)}
+      </p>
+      <nav aria-label={t.pasilloDe(pasillo, pasillos)}>
+        {pasillo > 1 && <a rel="prev" href={deOtroPasillo(pasillo - 1)}>← {t.anterior}</a>}
+        {pasillo < pasillos && <a rel="next" href={deOtroPasillo(pasillo + 1)}>{t.siguiente} →</a>}
+        {activa && <a href={`/${locale}/wisdom/`}>{t.todas}</a>}
+        <slot name="acciones" />
+      </nav>
+    </footer>
+  </>
+)}

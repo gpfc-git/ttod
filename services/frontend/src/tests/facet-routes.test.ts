@@ -57,58 +57,84 @@ const render = async (Route: Parameters<AstroContainer['renderToString']>[0], pa
   return main;
 };
 
-const cardIds = (main: Element) => [...main.querySelectorAll('article.ttod-card')].map((card) => card.querySelector('a')?.textContent?.trim());
-const pills = (main: Element) => [...main.querySelectorAll('nav.ttod-clusters a.ttod-pill')].map((pill) => pill.textContent?.replace(/\s+/g, ' ').trim());
+/* El corpus ya no son tarjetas: cada aforismo es una estela y su id va grabado
+   al pie de la losa. Las facetas ya no son cuatro filas de píldoras sueltas:
+   viven dentro de la única puerta «Filtrar», como filas con su recuento. */
+const estelaIds = (main: Element) => [...main.querySelectorAll('article.piedra .piedra-id')].map((id) => id.textContent?.trim());
+const filas = (main: Element, grupo: number) => {
+  const grupos = main.querySelectorAll('.puerta-dentro .faceta-grupo');
+  return [...grupos[grupo].querySelectorAll('.faceta-lista a')].map(
+    (a) => `${a.querySelector('.faceta-nombre')?.textContent?.trim()} (${a.querySelector('.faceta-cuenta')?.textContent?.trim()})`
+  );
+};
+const SECCIONES = 0, NIVELES = 1, ETIQUETAS = 2;
+const hrefs = (main: Element, grupo: number) => {
+  const grupos = main.querySelectorAll('.puerta-dentro .faceta-grupo');
+  return [...grupos[grupo].querySelectorAll('.faceta-lista a')].map((a) => a.getAttribute('href'));
+};
 
 describe('wisdom facet routes', () => {
   it('lists only the entries of the requested section', async () => {
     fetchWisdom.mockResolvedValue(payload);
     const main = await render(SectionRoute, '/en/wisdom/sections/architecture/', { locale: 'en', section: 'architecture' });
-    expect(cardIds(main)).toEqual(['arch-001', 'arch-002']);
+    expect(estelaIds(main)).toEqual(['arch-001', 'arch-002']);
   });
 
   it('counts sibling facets from the whole payload, not from the filtered slice', async () => {
     fetchWisdom.mockResolvedValue(payload);
     const main = await render(SectionRoute, '/en/wisdom/sections/architecture/', { locale: 'en', section: 'architecture' });
-    // 'wisdom (1)' can only appear if frequencies() ran on the unfiltered payload.
-    expect(pills(main)).toEqual(['architecture (2)', 'wisdom (1)']);
-    expect(main.querySelector('a.ttod-pill[href="/en/wisdom/sections/wisdom/"]')).not.toBeNull();
+    // 'Wisdom (1)' can only appear if frequencies() ran on the unfiltered payload.
+    expect(filas(main, SECCIONES)).toEqual(['Architecture (2)', 'Wisdom (1)']);
+    expect(main.querySelector('.faceta-lista a[href="/en/wisdom/sections/wisdom/"]')).not.toBeNull();
   });
 
   it('marks the current facet with aria-current, not with colour alone', async () => {
     fetchWisdom.mockResolvedValue(payload);
     const main = await render(SectionRoute, '/en/wisdom/sections/architecture/', { locale: 'en', section: 'architecture' });
-    const current = main.querySelectorAll('a.ttod-pill[aria-current="page"]');
+    const current = main.querySelectorAll('.faceta-lista a[aria-current="page"]');
     expect(current).toHaveLength(1);
-    expect(current[0].textContent?.replace(/\s+/g, ' ').trim()).toBe('architecture (2)');
+    expect(current[0].querySelector('.faceta-nombre')?.textContent?.trim()).toBe('Architecture');
+  });
+
+  it('opens the filter gate when a facet is already applied, and leaves it shut otherwise', async () => {
+    fetchWisdom.mockResolvedValue(payload);
+    const facet = await render(SectionRoute, '/en/wisdom/sections/architecture/', { locale: 'en', section: 'architecture' });
+    expect(facet.querySelector('details.puerta')?.hasAttribute('open')).toBe(true);
+
+    // La portada del corpus ya no filtra: es el armario, y cada volumen es la
+    // faceta. Ni una puerta de filtro ni cuatro bloques de píldoras.
+    const index = await render(WisdomIndexRoute, '/en/wisdom/', { locale: 'en' });
+    expect(index.querySelectorAll('details.puerta')).toHaveLength(0);
+    expect(index.querySelectorAll('details.libro').length).toBeGreaterThan(0);
   });
 
   it('filters by tag membership and offers every sibling tag', async () => {
     fetchWisdom.mockResolvedValue(payload);
     const main = await render(TagRoute, '/en/wisdom/tags/boundaries/', { locale: 'en', tag: 'boundaries' });
-    expect(cardIds(main)).toEqual(['arch-001', 'arch-002']);
-    expect(pills(main)).toEqual(['boundaries (2)', 'coupling (1)', 'simplicity (1)']);
+    expect(estelaIds(main)).toEqual(['arch-001', 'arch-002']);
+    // Las etiquetas de la puerta van de más grabadas a menos.
+    expect(filas(main, ETIQUETAS)).toEqual(['boundaries (2)', 'coupling (1)', 'simplicity (1)']);
   });
 
-  it('links each wisdom card tag to its locale-scoped facet route', async () => {
+  it('links each stele tag to its locale-scoped facet route', async () => {
     fetchWisdom.mockResolvedValue(payload);
     const main = await render(WisdomIndexRoute, '/en/wisdom/', { locale: 'en' });
-    const boundaries = main.querySelector('article nav[aria-label] a[href="/en/wisdom/tags/boundaries/"]');
-    expect(boundaries?.textContent?.trim()).toBe('boundaries');
+    const boundaries = main.querySelector('.armario-facetas a[href="/en/wisdom/tags/boundaries/"]');
+    expect(boundaries?.textContent).toContain('boundaries');
   });
 
   it('filters by level and offers every sibling level', async () => {
     fetchWisdom.mockResolvedValue(payload);
     const main = await render(LevelRoute, '/en/wisdom/levels/master/', { locale: 'en', level: 'master' });
-    expect(cardIds(main)).toEqual(['wis-001']);
-    expect(pills(main)).toEqual(['advanced (1)', 'beginner (1)', 'master (1)']);
+    expect(estelaIds(main)).toEqual(['wis-001']);
+    expect(filas(main, NIVELES)).toEqual(['Advanced (1)', 'Beginner (1)', 'Master (1)']);
   });
 
   it('shows a translated empty state, never a blank page, for a facet with no matches', async () => {
     fetchWisdom.mockResolvedValue(payload);
 
     const english = await render(SectionRoute, '/en/wisdom/sections/nope/', { locale: 'en', section: 'nope' });
-    expect(cardIds(english)).toEqual([]);
+    expect(estelaIds(english)).toEqual([]);
     expect(english.querySelector('.ttod-empty')?.textContent).toContain('No English wisdom entry carries this facet yet.');
     expect(english.querySelector('.ttod-empty a')?.getAttribute('href')).toBe('/en/wisdom/');
 
@@ -120,7 +146,6 @@ describe('wisdom facet routes', () => {
   it('keeps the locale prefix on every sibling link', async () => {
     fetchWisdom.mockResolvedValue(payload);
     const main = await render(SectionRoute, '/es/wisdom/sections/architecture/', { locale: 'es', section: 'architecture' });
-    const hrefs = [...main.querySelectorAll('nav.ttod-clusters a.ttod-pill')].map((pill) => pill.getAttribute('href'));
-    expect(hrefs).toEqual(['/es/wisdom/sections/architecture/', '/es/wisdom/sections/wisdom/']);
+    expect(hrefs(main, SECCIONES)).toEqual(['/es/wisdom/sections/architecture/', '/es/wisdom/sections/wisdom/']);
   });
 });

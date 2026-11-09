@@ -1,0 +1,48 @@
+/* Movimiento compartido de la portada y de Sabiduría (src/components/movimiento.ts).
+   Sólo transform y opacity; con movimiento reducido, nada se mueve. */
+
+/* --- Nubes ruyi -------------------------------------------------------- */
+/* Viven en un hueco junto a un titular, nunca debajo del texto. El guion
+   crea dentro un <div> que respira y dos lienzos (aguada y tinta). */
+.nube-ruyi {
+  --w: clamp(17rem, 78vw, 30rem);
+  position: absolute;
+  z-index: -1;
+  /* Acaba justo encima del titular: el alto de la nube es 2,7/7,4 de su ancho. */
+  inset-block-start: calc(var(--w) * -.365 + 1.6rem);
+  inset-inline-end: clamp(-3rem, -4vw, -1rem);
+  width: var(--w);
+  aspect-ratio: 7.4 / 2.7;
+  pointer-events: none;
+}
+.nube-ruyi > div { position: absolute; inset: 0; animation: nube-respira 11s ease-in-out infinite alternate; }
+.nube-ruyi canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+@keyframes nube-respira { from { transform: translate3d(-2%, .8%, 0); } to { transform: translate3d(2%, -.8%, 0) scale(1.02); } }
+
+/* --- Presión ----------------------------------------------------------- */
+/* Los botones redondos se hunden un poco bajo el dedo y vuelven con muelle. */
+.boton, .rollo__flecha, .mazo-boton, .lectura-acciones button, .ttod-lang-switch {
+  transition: transform 260ms cubic-bezier(.3, 1.5, .5, 1), background-color 160ms ease, color 160ms ease;
+}
+.boton:active, .rollo__flecha:active:not([disabled]), .lectura-acciones button:active, .ttod-lang-switch:active {
+  transform: scale(.94);
+  transition-duration: 80ms;
+}
+
+/* --- Subrayado de pincel ----------------------------------------------- */
+/* Debajo del subrayado de siempre (que sigue diciendo «esto es un enlace»),
+   al pasar o enfocar se dibuja un trazo de pincel de izquierda a derecha. */
+.parada__ver, .enlace, .lectura-enlaces a, .hoja-seguir, .armario-proponer, .facetas-grupo a {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12' preserveAspectRatio='none'%3E%3Cpath d='M2 8C40 4 80 9 120 6s60-3 76 1c-30 3-80 1-118 3C50 11 20 10 2 8Z' fill='%23c4573f'/%3E%3C/svg%3E") left calc(100% - 2px) / 0% .42em no-repeat;
+  transition: background-size 380ms cubic-bezier(.4, .1, .2, 1);
+}
+.parada__ver:hover, .enlace:hover, .lectura-enlaces a:hover, .hoja-seguir:hover, .armario-proponer:hover, .facetas-grupo a:hover,
+.parada__ver:focus-visible, .enlace:focus-visible, .lectura-enlaces a:focus-visible, .hoja-seguir:focus-visible, .armario-proponer:focus-visible, .facetas-grupo a:focus-visible {
+  background-size: 100% .42em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nube-ruyi > div { animation: none; }
+  .boton, .rollo__flecha, .mazo-boton, .lectura-acciones button, .ttod-lang-switch,
+  .parada__ver, .enlace, .lectura-enlaces a, .hoja-seguir, .armario-proponer, .facetas-grupo a { transition: none; }
+}

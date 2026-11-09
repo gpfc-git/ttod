@@ -1,27 +1,70 @@
 ---
 import Page from '../../layouts/Page.astro';
+import ValleHero from '../../components/ValleHero.astro';
+import ValleSigue from '../../components/ValleSigue.astro';
+import { frequencies } from '../../content/wisdom';
+import { pideCorpus } from '../../lib/corpus.server';
 import type { WisdomEntry } from '../../types/domain';
 
-const backend = import.meta.env.BACKEND_URL ?? 'http://backend:8000';
-const response = await fetch(`${backend}/api/v1/wisdom/sample`, {
-  headers: { accept: 'application/json' }
-});
-if (!response.ok) throw new Error(`Backend flagship quote request failed (${response.status})`);
-const entries: WisdomEntry[] = await response.json();
-const flagship = entries.find((entry) => entry.id === 'wis-033');
-if (!flagship) throw new Error('Governed flagship quote wis-033 is unavailable');
+// El mismo corpus del backend real, pero sin pagar su segundo de espera en cada
+// visita: ese segundo era el TTFB de esta página y con él casi todo el LCP
+// (el por qué y las medidas están en `lib/corpus.server.ts`).
+const entries: WisdomEntry[] = await pideCorpus();
+const flagship = entries.find((entry) => entry.id === 'wis-034' && entry.lang === 'es');
+if (!flagship) throw new Error('Governed flagship quote wis-034 (es) is unavailable');
+
+// Tramos curados del rollo: la cita insignia, la que define el curso y la que
+// cierra. En el corpus cada idioma tiene su propia cita con su propio id (no es
+// una traducción colgada de la inglesa), así que la portada española enseña las
+// españolas: `wis-034`, `wis-031` y `cc-068` dicen lo mismo que `wis-033`,
+// `wis-005` y `cc-007` en `/en/`. El filtro por `lang` es el cinturón: si
+// mañana un id cambiara de idioma, antes de enseñar inglés aquí no se enseña.
+const curated = ['wis-034', 'wis-031', 'cc-068']
+  .map((id) => entries.find((entry) => entry.id === id && entry.lang === 'es'))
+  .filter((entry): entry is WisdomEntry => Boolean(entry));
+const stations = (curated.length ? curated : [flagship]).map((entry) => ({
+  id: entry.id,
+  text: entry.text,
+  section: entry.section,
+  lang: entry.lang,
+}));
+
+// La forma del corpus en español, contada del propio corpus: ni una cifra a mano.
+const enEspanol = entries.filter((entry) => entry.lang === 'es');
+const secciones = frequencies(enEspanol, 'section')
+  .map(([slug, total]) => ({ slug, total }))
+  .sort((a, b) => b.total - a.total);
+const totalNiveles = frequencies(enEspanol, 'level').length;
+
+// Una cita de verdad por sección para la ficha de cada parada del rollo: la
+// primera que el corpus guarda en esa sección. No se elige a mano ni se
+// escribe un resumen; se enseña lo que hay, con su identificador.
+const muestras = Object.fromEntries(
+  secciones.map(({ slug }) => {
+    const cita = enEspanol.find((entry) => entry.section === slug)!;
+    return [slug, { id: cita.id, text: cita.text }];
+  })
+);
+
+const doors = [
+  { href: '/es/wisdom/', label: 'Sabiduría', note: 'El corpus gobernado, por sección, nivel y etiqueta.' },
+  { href: '/es/docs/', label: 'Documentación', note: 'Cómo se gobierna el corpus: esquema, licencia y revisión.' },
+  { href: '/es/graph/path', label: 'Grafo', note: "El sendero entre dos citas y el grafo del código del propio repositorio." },
+  { href: '/es/oracle', label: 'Oráculo', note: 'Pregunta al Tao; un modelo local responde desde el corpus.' },
+];
 ---
 <Page lang="es" title="道 El Tao del Desarrollo (TTOD)">
-  <nav><a href="/en/">English</a><a href="/es/">Español</a></nav>
-  <main>
-    <h1>Bienvenido a 道 El Tao del Desarrollo (TTOD)</h1>
-    <p>Una colección viva de sabiduría pedagógica para quienes recorren el camino del desarrollo.</p>
-    <article class="ttod-bg-constellation" aria-labelledby="flagship-quote-heading">
-      <h2 id="flagship-quote-heading">Cita insignia — original en inglés</h2>
-      <p>Esta cita aún no tiene una traducción gobernada al español; mostramos el original sin presentarlo como traducción.</p>
-      <blockquote lang={flagship.lang}>{flagship.text}</blockquote>
-      <p>{flagship.id} · {flagship.section} · {flagship.lang}</p>
-    </article>
-    <p><a href="/es/quote">Lee una cita en directo</a></p>
+  <ValleHero
+    lang="es"
+    title="El Tao del Desarrollo"
+    intro="Una colección viva de sabiduría pedagógica para quienes recorren el camino del desarrollo."
+    stations={stations}
+    doors={doors}
+    headingId="flagship-quote-heading"
+    cta="Leer una cita en vivo"
+    ctaHref="/es/quote"
+  />
+  <main class="ttod-portada">
+    <ValleSigue lang="es" secciones={secciones} muestras={muestras} totalCitas={enEspanol.length} totalNiveles={totalNiveles} />
   </main>
 </Page>

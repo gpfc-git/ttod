@@ -1,0 +1,85 @@
+---
+// Cielo ruyi: el estilo de toda la web, el del dragón del oráculo. Las nubes se van dibujando en
+// el fondo, con un poco de humo para el misticismo, y todo el fondo es azul, con nubes que se van
+// haciendo y deshaciendo. Un cielo azul de fresco renacentista (Tiepolo) donde las nubes ruyi (如意) nacen
+// dibujándose a pincel seco —el contorno avanza y luego entra la aguada—, respiran y se deshacen
+// en aguada para nacer en otro sitio; volutas de humo que suben y se deshacen; y, si se pide, un
+// loong de tinta y oro que persigue su perla. Todo es canvas 2D pintado en el momento a la
+// densidad de la pantalla (sin WebGL, sin imágenes descargadas, sin secuencias de fotogramas) y
+// movido con GSAP o CSS.
+//
+// Uso: primer hijo de un contenedor con `position: relative`; ocupa todo su alto, sangra a todo
+// el ancho de la ventana, sube por detrás de la cabecera flotante y abajo se funde en el papel.
+//   <CieloRuyi />                                       cielo, nubes y humo
+//   <CieloRuyi dragon rodea=".oracle-terminal" piensa /> el dragón rodea ese elemento sin pasar
+//                                                       nunca por detrás y, con `piensa`, la perla
+//                                                       arde cuando <html data-oraculo="pensando">.
+// Rendimiento (medido en un móvil lento emulado): nada fijo; todo lo vivo (nubes, humo,
+// dragón) va en un único lienzo de una pantalla de alto (cielo.ts) que no se pinta mientras se hace
+// scroll; más abajo, unas nubes quietas pintadas una vez. Con movimiento reducido, las nubes salen
+// ya dibujadas y nada se mueve.
+interface Props { dragon?: boolean; rodea?: string; piensa?: boolean; semilla?: number }
+const { dragon = false, rodea = '', piensa = false, semilla = 7 } = Astro.props;
+---
+<div class="cr-escena" aria-hidden="true" data-rodea={rodea} data-piensa={piensa ? '1' : undefined} data-semilla={semilla}>
+  <canvas class="cr-vivo" data-dragon={dragon ? '1' : undefined}></canvas>
+  <canvas class="cr-abajo"></canvas>
+</div>
+
+<style>
+  /* Sangra a 100vw; clip en la raíz evita el scroll lateral que daría la barra de desplazamiento. */
+  :global(html:has(.cr-escena)) { overflow-x: clip; }
+  .cr-escena {
+    position: absolute; top: calc(-1 * var(--ttod-cielo-sube, 5rem)); left: calc(50% - 50vw); width: 100vw;
+    /* Por abajo baja también hasta meterse detrás de la cresta del pie (su margen y su alto):
+       el cielo llega al pie sin banda de papel ni borde (sin recorte visible). */
+    height: calc(100% + var(--ttod-cielo-sube, 5rem) + var(--ttod-cielo-baja, 0px));
+    z-index: 0; overflow: hidden; pointer-events: none;
+    /* Azul de fresco en toda la página: más hondo arriba, más claro abajo, con una apertura de
+       luz fría detrás del centro. Medidas fijas: el cielo no se estira si el contenido crece. */
+    background:
+      radial-gradient(40rem 26rem at 50% 40svh, var(--ttod-cielo-luz) 0%, transparent 72%),
+      linear-gradient(180deg, var(--ttod-cielo-alto) 0, var(--ttod-cielo-medio) 70svh, var(--ttod-cielo-bajo) 160svh);
+  }
+  /* Grano de papel, quieto (sin mezcla: una mezcla obliga a recomponer al hacer scroll). */
+  .cr-escena::after {
+    /* z-index -1: debajo de nubes y dragón. Encima, solapaba todas las capas animadas y el
+       compositor tenía que mezclar una capa del alto de la página en cada cuadro. */
+    content: ''; position: absolute; inset: 0; z-index: -1; opacity: .2;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .3 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
+  }
+  /* Lo vivo, en la primera pantalla (y por detrás de la cabecera); debajo, nubes quietas. */
+  .cr-vivo { position: absolute; top: 0; left: 0; width: 100%; height: calc(100svh + var(--ttod-cielo-sube, 5rem)); display: block; }
+  .cr-abajo { position: absolute; left: 0; width: 100%; top: calc(100svh + var(--ttod-cielo-sube, 5rem)); bottom: 0; display: block; }
+</style>
+
+<script>
+  import { azar, nube } from './tinta';
+  import { cielo, congelar } from './cielo';
+
+  document.querySelectorAll<HTMLElement>('.cr-escena').forEach((escena) => {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const vivo = escena.querySelector<HTMLCanvasElement>('.cr-vivo')!;
+    const abajo = escena.querySelector<HTMLCanvasElement>('.cr-abajo')!;
+    // Debajo de la primera pantalla (si la página sigue): unas pocas nubes quietas, pintadas una vez.
+    const pintarAbajo = () => {
+      abajo.style.display = '';
+      const w = abajo.clientWidth, h = abajo.clientHeight;
+      if (h < 40) return;
+      // Quietas: se pintan una vez, siempre a 2× (nítidas también en pantallas retina).
+      abajo.width = Math.ceil(w * 2); abajo.height = Math.ceil(h * 2);
+      const c = abajo.getContext('2d')!; c.setTransform(2, 0, 0, 2, 0, 0);
+      const rnd = azar((Number(escena.dataset.semilla) || 7) * 5 + 3);
+      const R = Math.min(w, innerHeight) * (w < 700 ? .22 : .14);
+      const n = Math.max(1, Math.round(h / (innerHeight * .45)));
+      for (let i = 0; i < n; i++) nube(c, { x: w * (i % 2 ? .78 + rnd() * .15 : .07 + rnd() * .15), y: h * (i + .4) / n }, R * (.7 + rnd() * .4), rnd, 1);
+      congelar(abajo);
+    };
+    // El texto llega antes (LCP); la tinta se pinta después de la carga.
+    const empezar = () => { pintarAbajo(); cielo(escena, vivo, dpr); };
+    if (document.readyState === 'complete') setTimeout(empezar, 0);
+    else addEventListener('load', () => setTimeout(empezar, 0), { once: true });
+    let ancho = 0;
+    new ResizeObserver(() => { if (Math.abs(abajo.clientWidth - ancho) > 1) { ancho = abajo.clientWidth; if (document.readyState === 'complete') pintarAbajo(); } }).observe(escena);
+  });
+</script>

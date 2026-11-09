@@ -1,26 +1,65 @@
 ---
 import Page from '../../layouts/Page.astro';
+import ValleHero from '../../components/ValleHero.astro';
+import ValleSigue from '../../components/ValleSigue.astro';
+import { frequencies } from '../../content/wisdom';
+import { pideCorpus } from '../../lib/corpus.server';
 import type { WisdomEntry } from '../../types/domain';
 
-const backend = import.meta.env.BACKEND_URL ?? 'http://backend:8000';
-const response = await fetch(`${backend}/api/v1/wisdom/sample`, {
-  headers: { accept: 'application/json' }
-});
-if (!response.ok) throw new Error(`Backend flagship quote request failed (${response.status})`);
-const entries: WisdomEntry[] = await response.json();
+// El mismo corpus del backend real, pero sin pagar su segundo de espera en cada
+// visita: ese segundo era el TTFB de esta página y con él casi todo el LCP
+// (el por qué y las medidas están en `lib/corpus.server.ts`).
+const entries: WisdomEntry[] = await pideCorpus();
 const flagship = entries.find((entry) => entry.id === 'wis-033');
 if (!flagship) throw new Error('Governed flagship quote wis-033 is unavailable');
+
+// Tramos curados del rollo: la cita insignia, la que define el curso y la que cierra.
+const curated = ['wis-033', 'wis-005', 'cc-007']
+  .map((id) => entries.find((entry) => entry.id === id))
+  .filter((entry): entry is WisdomEntry => Boolean(entry));
+const stations = (curated.length ? curated : [flagship]).map((entry) => ({
+  id: entry.id,
+  text: entry.text,
+  section: entry.section,
+  lang: entry.lang,
+}));
+
+// The shape of the corpus in English, read from the corpus itself: no hand-typed figures.
+const inEnglish = entries.filter((entry) => entry.lang === 'en');
+const secciones = frequencies(inEnglish, 'section')
+  .map(([slug, total]) => ({ slug, total }))
+  .sort((a, b) => b.total - a.total);
+const totalNiveles = frequencies(inEnglish, 'level').length;
+
+// Una cita de verdad por sección para la ficha de cada parada del rollo: la
+// primera que el corpus guarda en esa sección. No se elige a mano ni se
+// escribe un resumen; se enseña lo que hay, con su identificador.
+const muestras = Object.fromEntries(
+  secciones.map(({ slug }) => {
+    const cita = inEnglish.find((entry) => entry.section === slug)!;
+    return [slug, { id: cita.id, text: cita.text }];
+  })
+);
+
+const doors = [
+  { href: '/en/wisdom/', label: 'Wisdom', note: 'The governed corpus, by section, level and tag.' },
+  { href: '/en/docs/', label: 'Documentation', note: 'How the corpus is governed: schema, licence and review.' },
+  { href: '/en/graph/path', label: 'Graph', note: "The path between two quotes, and the graph of this repository's own code." },
+  { href: '/en/oracle', label: 'Oracle', note: 'Ask the Tao; a local model answers from the corpus.' },
+];
 ---
 <Page lang="en" title="道 The Tao of Development (TTOD)">
-  <nav><a href="/en/">English</a><a href="/es/">Español</a></nav>
-  <main>
-    <h1>Welcome to 道 The Tao of Development (TTOD)</h1>
-    <p>A living collection of pedagogical wisdom for developers walking the path.</p>
-    <article class="ttod-bg-constellation" aria-labelledby="flagship-quote-heading">
-      <h2 id="flagship-quote-heading">Flagship quote</h2>
-      <blockquote>{flagship.text}</blockquote>
-      <p>{flagship.id} · {flagship.section} · {flagship.lang}</p>
-    </article>
-    <p><a href="/en/quote">Read a live quote</a></p>
+  <ValleHero
+    lang="en"
+    title="The Tao of Development"
+    intro="A living collection of pedagogical wisdom for developers walking the path."
+    stations={stations}
+    doors={doors}
+    headingId="flagship-quote-heading"
+    cta="Read a live quote"
+    ctaHref="/en/quote"
+  />
+  <main class="ttod-portada">
+    <ValleSigue lang="en" secciones={secciones} muestras={muestras} totalCitas={inEnglish.length} totalNiveles={totalNiveles} />
   </main>
 </Page>

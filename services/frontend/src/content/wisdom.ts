@@ -19,10 +19,49 @@ export type WisdomLoad = { entries: WisdomEntry[]; failed: boolean };
 // network/response failures (its existing, tested contract), and this is the one place that
 // catches that so no page carries its own try/catch. A route only ever needs to branch on
 // `failed` (translated error state) vs `entries.length === 0` (translated empty state).
+/**
+ * El corpus entero, recordado por idioma: se sirve lo guardado y, pasado un
+ * minuto, se vuelve a preguntar por detrás sin hacer esperar a nadie.
+ *
+ * Medido el 17 oct a 390 con el freno de CPU 4×: el backend tarda entre 1,2 y
+ * 3,4 s en devolver `/api/v1/wisdom/sample`, y como la página se pinta en el
+ * servidor, ese tiempo era el primer píxel — LCP de 5,3 s, cuando el
+ * presupuesto son 2,5. Ni una línea del backend cambia: el frontend deja de
+ * pedir lo mismo doscientas veces. Un minuto es corto para una base que se
+ * edita a mano y largo para una visita.
+ */
+const UN_MINUTO = 60_000;
+const recordado = new Map<Locale, { en: number; corpus: Promise<WisdomEntry[]> }>();
+
+/**
+ * En las pruebas no se recuerda nada: cada caso trae su propio corpus (uno
+ * vacío, uno con una entrada, un backend caído) dentro del mismo minuto, y
+ * una caché le daría al segundo caso el corpus del primero. Apagada ahí, el
+ * banco de pruebas sigue comprobando de verdad qué pasa con el backend caído.
+ */
+const recordar = import.meta.env.MODE !== 'test';
+
 export async function loadWisdom(locale: Locale): Promise<WisdomLoad> {
+  const ahora = Date.now();
+  const guardado = recordar ? recordado.get(locale) : undefined;
+  // Lo guardado se sirve siempre que exista; si ya pasó el minuto se sirve
+  // igual y se pregunta por detrás. Esperar a la respuesta para enseñar lo
+  // mismo que ya se tenía es pagar dos segundos por nada: sólo la primera
+  // visita después de arrancar espera al backend.
+  if (guardado !== undefined && ahora - guardado.en >= UN_MINUTO) {
+    const fresco = fetchWisdom(locale);
+    recordado.set(locale, { en: ahora, corpus: fresco });
+    // Si la que viene por detrás falla, se deja lo de antes: una página con el
+    // corpus de hace un minuto es mejor que una página con un aviso de error.
+    fresco.catch(() => recordado.set(locale, guardado));
+  }
+  const corpus = guardado?.corpus ?? fetchWisdom(locale);
+  if (recordar && guardado === undefined) recordado.set(locale, { en: ahora, corpus });
   try {
-    return { entries: await fetchWisdom(locale), failed: false };
+    return { entries: await corpus, failed: false };
   } catch {
+    // Un fallo no se recuerda: la siguiente visita vuelve a preguntar.
+    if (recordado.get(locale)?.corpus === corpus) recordado.delete(locale);
     return { entries: [], failed: true };
   }
 }

@@ -1,0 +1,90 @@
+---
+/**
+ * Un volumen del armario: una sección del corpus, cosida y en tres dimensiones.
+ *
+ * Es un `<details>` nativo, no una tarjeta con JavaScript: el libro se abre con
+ * el dedo, con la tecla Intro y con el lector de pantalla sin una sola línea de
+ * script, y `name="armario"` hace que abrir uno cierre el anterior (sólo hay un
+ * libro abierto sobre la mesa). Las tres caras —tapa, lomo y contratapa— son
+ * transformaciones 3D de CSS: ni imágenes, ni secuencias de fotogramas.
+ */
+import ProvenanceBlock from '../ProvenanceBlock.astro';
+import type { Locale } from '../../content/wisdom';
+import { copia, PAGINAS_POR_VOLUMEN, type Volumen } from '../../content/estanteria';
+import { rotuloNivel } from '../../content/bosque';
+
+interface Props {
+  volumen: Volumen;
+  locale: Locale;
+  /** El número del volumen en el armario, para el lomo: «I», «II», «III»… */
+  orden: string;
+}
+
+const { volumen, locale, orden } = Astro.props;
+const t = copia[locale];
+const paginas = volumen.citas.slice(0, PAGINAS_POR_VOLUMEN);
+const quedan = volumen.citas.length - paginas.length;
+const seccion = `/${locale}/wisdom/sections/${volumen.slug}/`;
+---
+
+<details
+  class="libro"
+  name="armario"
+  style={`--grosor:${volumen.grosor}px; --tono:${volumen.tono};`}
+>
+  <summary class="libro-abrir">
+    <span class="volumen">
+      <span class="cara contratapa"></span>
+      <!-- La primera página, justo debajo de la tapa: es lo que aparece cuando
+           el libro se abre, y por eso va dentro del volumen y no en la lista.
+           Sin enlaces: esto vive dentro de un `summary`. -->
+      <span class="cara primera" aria-hidden="true">
+        <span class="primera-titulo">{volumen.titulo}</span>
+        <span class="primera-cuenta">{t.aforismos(volumen.citas.length)}</span>
+        <span class="primera-pie">{t.volumen} {orden}</span>
+      </span>
+      <!-- El lomo dice el título y cuántos aforismos lleva, en una sola línea
+           escrita de arriba abajo: en un lomo de 18 px no cabe nada en
+           horizontal, y el texto de la interfaz no baja de 12 px. -->
+      <span class="cara lomo" aria-hidden="true">
+        <span class="lomo-titulo">{volumen.titulo} · {volumen.citas.length}</span>
+      </span>
+      <span class="cara tapa">
+        <span class="tapa-cara tapa-fuera">
+          <span class="tapa-rotulo">{t.volumen} {orden}</span>
+          <span class="tapa-titulo">{volumen.titulo}</span>
+          <span class="tapa-cuenta">{t.aforismos(volumen.citas.length)}</span>
+          <span class="tapa-sello" aria-hidden="true">{volumen.sello}</span>
+        </span>
+        <span class="tapa-cara tapa-dentro" aria-hidden="true">
+          <span class="dentro-anteportada">{volumen.titulo}</span>
+          <span class="dentro-pie">{volumen.slug} · {t.aforismos(volumen.citas.length)}</span>
+        </span>
+      </span>
+    </span>
+  </summary>
+
+  <div class="libro-dentro">
+    <ol class="hojas">
+      {paginas.map((cita, i) => (
+        <li class="hoja">
+          <span class="hoja-folio">{t.pagina(i + 1, volumen.citas.length)}</span>
+          <a class="hoja-enlace" href={`/${locale}/wisdom/${cita.id}/`}>
+            <span class="hoja-texto">{cita.text}</span>
+          </a>
+          <span class="hoja-pie">
+            <span class="hoja-id">{cita.id}</span>
+            <span class="hoja-nivel">{rotuloNivel(cita.level, locale)}</span>
+          </span>
+          <!-- El colofón de la página: de quién es la cita y con qué licencia.
+               Donde se enseña una cita del corpus se enseña su procedencia. -->
+          <ProvenanceBlock entry={cita} locale={locale} variant="compact" />
+        </li>
+      ))}
+    </ol>
+
+    <a class="hoja-seguir" href={seccion}>
+      {quedan > 0 ? t.seguir(volumen.citas.length, volumen.titulo) : t.sinMas(volumen.titulo)}
+    </a>
+  </div>
+</details>

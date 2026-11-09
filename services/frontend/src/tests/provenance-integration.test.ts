@@ -47,7 +47,10 @@ describe('provenance is visible with a real WisdomEntry fixture, in every view',
   it('index card shows holder, license and origin', async () => {
     fetchWisdom.mockResolvedValue([entry]);
     const main = await render(IndexRoute, '/en/wisdom/', { locale: 'en' });
-    const card = main.querySelector('article.ttod-card');
+    // El corpus se presenta como estelas: la procedencia va grabada
+    // en el colofón al pie de la losa, no en una tarjeta. Mismo dato, mismo
+    // `dl` etiquetado, otro sitio.
+    const card = main.querySelector('li.hoja');
     expect(card?.textContent).toContain('ruvebal@crea-comm.net');
     expect(card?.textContent).toContain('CC-BY-NC-SA-4.0');
     expect(card?.textContent).toContain('Human');
@@ -61,7 +64,7 @@ describe('provenance is visible with a real WisdomEntry fixture, in every view',
   ] as const)('%s facet listing shows the same provenance', async (_facet, Route, path, params) => {
     fetchWisdom.mockResolvedValue([entry]);
     const main = await render(Route, path, params);
-    const dl = main.querySelector('article.ttod-card dl[aria-label="Provenance"]');
+    const dl = main.querySelector('article.piedra dl[aria-label="Provenance"]');
     expect(dl?.textContent).toContain('ruvebal@crea-comm.net');
     expect(dl?.textContent).toContain('CC-BY-NC-SA-4.0');
     expect(dl?.textContent).toContain('Human');

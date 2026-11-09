@@ -1,0 +1,69 @@
+---
+/**
+ * Una estela: un aforismo grabado en su losa.
+ *
+ * La jerarquía de la losa es toda la jerarquía de la vista — folio y sección
+ * pequeños y grabados en la piedra, el texto del aforismo lo más grande de la
+ * estela, el id y el nivel al pie, y las facetas fuera de la piedra, sobre el
+ * papel, porque son enlaces de la interfaz y no parte del grabado.
+ */
+import ProvenanceBlock from '../ProvenanceBlock.astro';
+import type { WisdomEntry } from '../../types/domain';
+import type { Locale } from '../../content/wisdom';
+import { copia, rotuloNivel, rotuloSeccion } from '../../content/bosque';
+
+interface Props {
+  entry: WisdomEntry;
+  locale: Locale;
+  /** «007» — el número de la estela dentro del corpus filtrado. */
+  folio: string;
+  /** Cuántas estelas tiene el recorrido entero, para leer «007 / 230». */
+  de: number;
+  /** La estela mayor de la entrada: la misma losa, a tamaño de titular. */
+  destacada?: boolean;
+}
+
+const { entry, locale, folio, de, destacada = false } = Astro.props;
+const t = copia[locale];
+const href = `/${locale}/wisdom/${entry.id}/`;
+/**
+ * Tres etiquetas, no las que tenga. Con seis u ocho, el pie de cada estela
+ * volvía a ser la nube de píldoras que esta vista venía a quitar; las demás
+ * están en la ficha del aforismo y en la puerta de filtro.
+ */
+const facetas = entry.tags.slice(0, 3);
+---
+
+<article class="piedra">
+  <div class="piedra-cabeza">
+    <span class="piedra-folio">{folio} / {de}</span>
+    <a class="piedra-seccion" href={`/${locale}/wisdom/sections/${entry.section}/`}>
+      {rotuloSeccion(entry.section, locale)}
+    </a>
+  </div>
+
+  <!-- El movimiento de esta vista es el pasillo, no el texto: la tinta que
+       escribe palabra a palabra (TextoTinta) pide una hoja de 321 KB y, al
+       pasar cada palabra a `inline-block`, recompone la línea —medido: CLS
+       0,19 y el LCP en el límite—. La tinta se queda en la portada y en la
+       ficha del aforismo, donde hay una cita y no doscientas treinta. -->
+  <a class="piedra-enlace" href={href}>
+    <span class="piedra-texto">{entry.text}</span>
+  </a>
+
+  <!-- El colofón de la losa: quién la mandó levantar y con qué derecho. En una
+       estela de verdad ese dato va grabado al pie, pequeño, y aquí también. -->
+  <div class="piedra-pie">
+    <span class="piedra-id">{entry.id}</span>
+    <ProvenanceBlock entry={entry} locale={locale} variant="compact" />
+  </div>
+</article>
+
+<nav class="estela-facetas" aria-label={t.facetasDe(entry.id)}>
+  <a class="faceta-pildora faceta-pildora--nivel" href={`/${locale}/wisdom/levels/${entry.level}/`}>
+    {rotuloNivel(entry.level, locale)}
+  </a>
+  {facetas.map((tag) => (
+    <a class="faceta-pildora" href={`/${locale}/wisdom/tags/${tag}/`}>{tag}</a>
+  ))}
+</nav>

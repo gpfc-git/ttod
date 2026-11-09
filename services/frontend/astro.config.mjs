@@ -7,6 +7,13 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   output: 'server',
+  // El CSS de cada vista va dentro del HTML en vez de en un <link> que bloquea el
+  // pintado. Medido con Lighthouse móvil (mediana de 3, detrás de Caddy): primer
+  // pintado /es/docs 1219 -> 1066 ms, /es/login 1385 -> 1069, /es/wisdom 1534 -> 1225,
+  // portada 1651 -> 1476. Los bytes de la primera visita son los mismos (8-20 KB gzip
+  // de CSS); lo que se pierde es la caché del CSS entre vistas: cada navegación los
+  // vuelve a traer dentro del HTML (~20-40 ms a 4 Mb/s). Capturas idénticas (0 %).
+  build: { inlineStylesheets: 'always' },
   adapter: node({ mode: 'standalone' }),
   integrations: [mdx(), react(), svelte()],
   i18n: {
@@ -18,5 +25,15 @@ export default defineConfig({
   // El formulario de login hace POST: sin esto el build de Node no confía en la cabecera Host,
   // toma el origen como `http://localhost` sin puerto y rechaza con 403 el POST del stack local.
   security: { allowedDomains: [{ hostname: 'localhost' }, { hostname: '127.0.0.1' }] },
-  vite: { plugins: [tailwindcss()] }
+  vite: {
+    plugins: [tailwindcss()],
+    // Solo en dev: Caddy no existe fuera de Docker, así que el fetch del navegador
+    // a /api y /health se reenvía al backend local, igual que hace el Caddyfile.
+    server: {
+      proxy: {
+        '/api': process.env.BACKEND_URL ?? 'http://127.0.0.1:8000',
+        '/health': process.env.BACKEND_URL ?? 'http://127.0.0.1:8000'
+      }
+    }
+  }
 });
